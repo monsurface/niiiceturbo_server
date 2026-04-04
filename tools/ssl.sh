@@ -236,7 +236,7 @@ EOF
 
 # --- Main ---
 case "${1:-}" in
-    install)  ssl_install ;;
+    install)  shift; ssl_install "$@" ;;
     renew)    ssl_renew "${2:-}" ;;
     revoke)   ssl_revoke ;;
     list)     ssl_list ;;
