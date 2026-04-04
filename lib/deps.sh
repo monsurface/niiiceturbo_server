@@ -78,6 +78,19 @@ EOF
     log_ok "System limits configured."
 }
 
+setup_journald() {
+    log_info "Configuring journald log limits..."
+    mkdir -p /etc/systemd/journald.conf.d
+    cat > /etc/systemd/journald.conf.d/size-limit.conf <<'EOF'
+[Journal]
+SystemMaxUse=100M
+SystemMaxFileSize=20M
+EOF
+    systemctl restart systemd-journald 2>/dev/null
+    journalctl --vacuum-size=20M 2>/dev/null
+    log_ok "Journald limited to 100M total, 20M per file."
+}
+
 setup_hosts() {
     if ! grep -Eqi '^127.0.0.1[[:space:]]+localhost' /etc/hosts; then
         echo "127.0.0.1 localhost.localdomain localhost" >> /etc/hosts
@@ -144,6 +157,7 @@ prepare_system() {
     install_deps
     setup_timezone
     setup_system_limits
+    setup_journald
     setup_swap
     install_docker
     install_wp_cli
