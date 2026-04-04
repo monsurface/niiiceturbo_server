@@ -193,13 +193,19 @@ _apply_ssl_vhost() {
     local rewrite_line=$(grep -m1 'include rewrite/' "$vhost_conf" 2>/dev/null | sed 's/.*include //' | tr -d ';')
     [[ -n "$rewrite_line" ]] && rewrite="$rewrite_line"
 
-    # Add 301 redirect to existing HTTP block
-    sed -i '/^server {/,/^}/ {
-        /index/a\
+    # Optional: redirect HTTP to HTTPS
+    if ! grep -q 'return 301 https' "$vhost_conf" 2>/dev/null; then
+        local do_redirect="n"
+        [[ "${FORCE_REDIRECT:-}" = "y" ]] && do_redirect="y"
+        [[ "$do_redirect" = "n" ]] && read -r -p "Redirect HTTP to HTTPS (301)? [y/N]: " do_redirect
+        if [[ "${do_redirect}" =~ ^[Yy]$ ]]; then
+            sed -i '/^server {/,/^}/ {
+                /index/a\
 \
-    # Redirect HTTP to HTTPS\
     return 301 https://$host$request_uri;
-    }' "$vhost_conf" 2>/dev/null
+            }' "$vhost_conf" 2>/dev/null
+        fi
+    fi
 
     # Append SSL server block
     cat >> "$vhost_conf" <<EOF
@@ -241,7 +247,7 @@ server {
 EOF
 
     /usr/local/nginx/sbin/nginx -t && systemctl reload nginx
-    echo "Nginx vhost updated with SSL + HTTP→HTTPS redirect."
+    echo "Nginx vhost updated with SSL."
 }
 
 # --- Main ---

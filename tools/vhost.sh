@@ -15,14 +15,16 @@ show_add_usage() {
     echo "  --webroot /path     Custom web root (default: /home/wwwroot/<domain>)"
     echo "  --rewrite name      Rewrite rule: wordpress, laravel, thinkphp, yii2, none"
     echo "  --ssl               Enable Let's Encrypt SSL"
+    echo "  --redirect          Force HTTP→HTTPS 301 redirect"
     echo ""
     echo "Examples:"
     echo "  vhost.sh add example.com --rewrite wordpress --ssl"
+    echo "  vhost.sh add example.com --rewrite wordpress --ssl --redirect"
     echo "  vhost.sh add example.com --domains \"www.example.com\" --rewrite laravel"
 }
 
 vhost_add() {
-    local domain="" more_domains="" webroot="" rewrite="none" enable_ssl="n"
+    local domain="" more_domains="" webroot="" rewrite="none" enable_ssl="n" force_redirect="n"
 
     # Parse CLI args
     while [[ $# -gt 0 ]]; do
@@ -31,6 +33,7 @@ vhost_add() {
             --webroot)  webroot="$2"; shift 2 ;;
             --rewrite)  rewrite="$2"; shift 2 ;;
             --ssl)      enable_ssl="y"; shift ;;
+            --redirect) force_redirect="y"; shift ;;
             --help|-h)  show_add_usage; exit 0 ;;
             -*)         echo "Unknown option: $1"; show_add_usage; exit 1 ;;
             *)          [[ -z "$domain" ]] && domain="$1" || more_domains="${more_domains:+$more_domains }$1"; shift ;;
@@ -101,7 +104,7 @@ EOF
     # SSL setup
     if [[ "${enable_ssl}" =~ ^[Yy]$ ]]; then
         local script_dir="$(cd "$(dirname "$0")" && pwd)"
-        bash "${script_dir}/ssl.sh" install "$domain" "$more_domains" "$webroot"
+        FORCE_REDIRECT="$force_redirect" bash "${script_dir}/ssl.sh" install "$domain" "$more_domains" "$webroot"
     fi
 
     # Test and reload
