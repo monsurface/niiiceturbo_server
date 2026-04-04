@@ -70,20 +70,55 @@ _install_php_extensions() {
     done
 }
 
+# Step verification — stop on failure
+verify_step() {
+    local name="$1"
+    shift
+    if "$@"; then
+        log_ok "${name}: verified"
+    else
+        die "${name}: verification FAILED. Check ${LOG_FILE} and fix before re-running."
+    fi
+}
+
+verify_nginx() {
+    /usr/local/nginx/sbin/nginx -t 2>/dev/null
+}
+
+verify_mysql() {
+    local db_svc="mysql"
+    [[ "${DB_Type}" = 'mariadb' ]] && db_svc="mariadb"
+    systemctl is-active --quiet "$db_svc" && \
+    /usr/local/mysql/bin/mysqladmin -u root ping &>/dev/null
+}
+
+verify_php() {
+    /usr/local/php/bin/php -v &>/dev/null && \
+    [[ -f /usr/local/php/etc/php-fpm.conf ]]
+}
+
 # Install based on target
 case "$INSTALL_TARGET" in
     lnmp)
         install_nginx
+        verify_step "Nginx" verify_nginx
+
         install_mysql
+        verify_step "MySQL" verify_mysql
+
         install_php
+        verify_step "PHP" verify_php
+
         install_wp_cli
         _install_php_extensions
         ;;
     nginx)
         install_nginx
+        verify_step "Nginx" verify_nginx
         ;;
     db)
         install_mysql
+        verify_step "MySQL" verify_mysql
         ;;
 esac
 
