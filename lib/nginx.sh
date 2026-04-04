@@ -169,6 +169,13 @@ _setup_default_catch_all() {
         log_info "Generated self-signed cert for default catch-all server."
     fi
 
+    # Generate DH parameters for stronger SSL
+    if [[ ! -f "${ssl_dir}/dhparam.pem" ]]; then
+        log_info "Generating DH parameters (2048-bit)... this may take a moment."
+        openssl dhparam -out "${ssl_dir}/dhparam.pem" 2048 2>/dev/null
+        log_ok "DH parameters generated."
+    fi
+
     # Deploy catch-all config (loaded before vhost/* via include order)
     cp "${cur_dir}/conf/nginx/default_catch_all.conf" /usr/local/nginx/conf/default_catch_all.conf
 }
