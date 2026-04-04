@@ -80,8 +80,9 @@ case "${1:-}" in
     status)  lnmp_status ;;
     kill)    lnmp_kill ;;
     vhost)   shift; lnmp_vhost "$@" ;;
+    ssl)     shift; bash "$(dirname "$0")/ssl.sh" "$@" 2>/dev/null || bash /usr/local/lnmp-stack/tools/ssl.sh "$@" ;;
     *)
-        echo "Usage: lnmp {start|stop|restart|reload|status|kill|vhost}"
+        echo "Usage: lnmp {start|stop|restart|reload|status|kill|vhost|ssl}"
         echo ""
         echo "  start    — Start all LNMP services"
         echo "  stop     — Stop all LNMP services"
@@ -90,6 +91,7 @@ case "${1:-}" in
         echo "  status   — Show service status"
         echo "  kill     — Force kill all LNMP processes"
         echo "  vhost    — Virtual host management (add|del|list)"
+        echo "  ssl      — SSL certificate management (install|renew|revoke|list|self)"
         exit 1
         ;;
 esac

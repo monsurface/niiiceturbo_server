@@ -60,7 +60,8 @@ EOF
 
     # SSL setup
     if [[ "${enable_ssl}" =~ ^[Yy]$ ]]; then
-        _setup_ssl "$domain" "$server_names" "$webroot" "$rewrite"
+        local script_dir="$(cd "$(dirname "$0")" && pwd)"
+        bash "${script_dir}/ssl.sh" install
     fi
 
     # Test and reload
@@ -68,61 +69,6 @@ EOF
     echo "Virtual host ${domain} created."
     echo "  Config: ${conf_file}"
     echo "  Webroot: ${webroot}"
-}
-
-_setup_ssl() {
-    local domain="$1" server_names="$2" webroot="$3" rewrite="$4"
-
-    if [[ ! -s /usr/local/acme.sh/acme.sh ]]; then
-        echo "acme.sh not found. Installing..."
-        curl -sS https://get.acme.sh | sh -s email=admin@${domain}
-        ln -sf ~/.acme.sh /usr/local/acme.sh
-    fi
-
-    /usr/local/acme.sh/acme.sh --issue -d "$domain" -w "$webroot" --keylength ec-256
-
-    local ssl_dir="/usr/local/nginx/conf/ssl/${domain}"
-    mkdir -p "$ssl_dir"
-    /usr/local/acme.sh/acme.sh --install-cert -d "$domain" --ecc \
-        --key-file "${ssl_dir}/key.pem" \
-        --fullchain-file "${ssl_dir}/fullchain.pem" \
-        --reloadcmd "systemctl reload nginx"
-
-    # Append SSL server block
-    cat >> "${VHOST_DIR}/${domain}.conf" <<EOF
-
-server {
-    listen 443 ssl http2;
-    server_name ${server_names};
-    root ${webroot};
-    index index.html index.htm index.php;
-
-    ssl_certificate ${ssl_dir}/fullchain.pem;
-    ssl_certificate_key ${ssl_dir}/key.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384;
-    ssl_prefer_server_ciphers on;
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 10m;
-
-    add_header Strict-Transport-Security "max-age=31536000" always;
-
-    access_log /home/wwwlogs/${domain}.log main;
-    error_log /home/wwwlogs/${domain}.error.log;
-
-    include rewrite/${rewrite}.conf;
-
-    location ~ \.php\$ {
-        fastcgi_pass unix:/tmp/php-cgi.sock;
-        fastcgi_index index.php;
-        include fastcgi.conf;
-    }
-
-    location ~ /\. {
-        deny all;
-    }
-}
-EOF
 }
 
 vhost_del() {
