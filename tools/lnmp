@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# tools/lnmp — Service management command
+# Usage: lnmp {start|stop|restart|reload|status|vhost|kill}
+
+SERVICES_LNMP="nginx mysql php-fpm"
+
+get_db_service() {
+    if systemctl list-unit-files mariadb.service &>/dev/null && systemctl is-enabled mariadb &>/dev/null; then
+        echo "mariadb"
+    else
+        echo "mysql"
+    fi
+}
+
+lnmp_start() {
+    local db_svc=$(get_db_service)
+    for svc in nginx "$db_svc" php-fpm; do
+        echo "Starting ${svc}..."
+        systemctl start "$svc"
+    done
+}
+
+lnmp_stop() {
+    local db_svc=$(get_db_service)
+    for svc in nginx "$db_svc" php-fpm; do
+        echo "Stopping ${svc}..."
+        systemctl stop "$svc"
+    done
+}
+
+lnmp_restart() {
+    lnmp_stop
+    sleep 1
+    lnmp_start
+}
+
+lnmp_reload() {
+    echo "Reloading Nginx..."
+    /usr/local/nginx/sbin/nginx -t && systemctl reload nginx
+    echo "Reloading PHP-FPM..."
+    systemctl reload php-fpm
+}
+
+lnmp_status() {
+    local db_svc=$(get_db_service)
+    echo "=== LNMP Status ==="
+    for svc in nginx "$db_svc" php-fpm; do
+        local status="stopped"
+        systemctl is-active --quiet "$svc" && status="running"
+        printf "  %-12s %s\n" "${svc}:" "$status"
+    done
+    echo ""
+    echo "Listening ports:"
+    ss -tlnp | grep -E ':(80|443|3306|9000) ' 2>/dev/null || echo "  (none detected)"
+}
+
+lnmp_kill() {
+    echo "Force killing LNMP processes..."
+    killall -9 nginx mysqld php-fpm 2>/dev/null
+    echo "Done."
+}
+
+# Vhost management — delegate to tools/vhost.sh
+lnmp_vhost() {
+    local script_dir="$(cd "$(dirname "$0")" && pwd)"
+    # Try installed location first, then source tree
+    local vhost_sh=""
+    for path in "${script_dir}/vhost.sh" /usr/local/lnmp-stack/tools/vhost.sh; do
+        [[ -f "$path" ]] && { vhost_sh="$path"; break; }
+    done
+    [[ -n "$vhost_sh" ]] || { echo "vhost.sh not found"; exit 1; }
+    bash "$vhost_sh" "$@"
+}
+
+case "${1:-}" in
+    start)   lnmp_start ;;
+    stop)    lnmp_stop ;;
+    restart) lnmp_restart ;;
+    reload)  lnmp_reload ;;
+    status)  lnmp_status ;;
+    kill)    lnmp_kill ;;
+    vhost)   shift; lnmp_vhost "$@" ;;
+    *)
+        echo "Usage: lnmp {start|stop|restart|reload|status|kill|vhost}"
+        echo ""
+        echo "  start    — Start all LNMP services"
+        echo "  stop     — Stop all LNMP services"
+        echo "  restart  — Restart all LNMP services"
+        echo "  reload   — Reload Nginx and PHP-FPM configs"
+        echo "  status   — Show service status"
+        echo "  kill     — Force kill all LNMP processes"
+        echo "  vhost    — Virtual host management (add|del|list)"
+        exit 1
+        ;;
+esac

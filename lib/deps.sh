@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# lib/deps.sh — System dependencies, timezone, environment preparation
+
+install_deps() {
+    log_info "Installing system dependencies..."
+
+    export DEBIAN_FRONTEND=noninteractive
+
+    apt-get update -y
+    apt-get install -y --no-install-recommends \
+        build-essential gcc g++ make cmake autoconf automake \
+        pkg-config libtool bison re2c \
+        wget curl ca-certificates gnupg lsb-release \
+        libxml2-dev libsqlite3-dev libcurl4-openssl-dev \
+        libpng-dev libjpeg-dev libwebp-dev libavif-dev \
+        libfreetype-dev libonig-dev libreadline-dev \
+        libsodium-dev libzip-dev libssl-dev libgd-dev \
+        libxslt1-dev libgmp-dev libldap2-dev libbz2-dev \
+        libkrb5-dev libc-client2007e-dev \
+        libsystemd-dev libevent-dev libmemcached-dev \
+        zlib1g-dev liblz4-dev libzstd-dev \
+        libmagickwand-dev libmagickcore-dev \
+        libncurses5-dev libaio-dev libpam0g-dev \
+        libnuma-dev numactl \
+        screen cron logrotate \
+    2>&1 | tee -a "$LOG_FILE"
+
+    [[ ${PIPESTATUS[0]} -eq 0 ]] || die "Failed to install dependencies"
+    log_ok "Dependencies installed."
+}
+
+setup_timezone() {
+    local tz="${Timezone:-UTC}"
+    log_info "Setting timezone to ${tz}..."
+
+    ln -sf "/usr/share/zoneinfo/${tz}" /etc/localtime
+    echo "$tz" > /etc/timezone
+    dpkg-reconfigure -f noninteractive tzdata 2>/dev/null
+
+    log_ok "Timezone set to ${tz}."
+}
+
+setup_system_limits() {
+    log_info "Configuring system limits..."
+
+    cat > /etc/security/limits.d/lnmp.conf <<'EOF'
+*  soft  nofile  65535
+*  hard  nofile  65535
+*  soft  nproc   65535
+*  hard  nproc   65535
+EOF
+
+    # sysctl tuning
+    cat > /etc/sysctl.d/99-lnmp.conf <<'EOF'
+net.core.somaxconn = 65535
+net.core.netdev_max_backlog = 65535
+net.ipv4.tcp_max_syn_backlog = 65535
+net.ipv4.tcp_fin_timeout = 10
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_keepalive_time = 600
+net.ipv4.ip_local_port_range = 1024 65535
+net.ipv4.tcp_max_tw_buckets = 6000
+net.ipv4.tcp_fastopen = 3
+vm.swappiness = 10
+fs.file-max = 655350
+EOF
+    sysctl -p /etc/sysctl.d/99-lnmp.conf 2>/dev/null
+
+    log_ok "System limits configured."
+}
+
+setup_hosts() {
+    if ! grep -Eqi '^127.0.0.1[[:space:]]+localhost' /etc/hosts; then
+        echo "127.0.0.1 localhost.localdomain localhost" >> /etc/hosts
+    fi
+}
+
+check_dns() {
+    if ! ping -c1 -W5 google.com &>/dev/null; then
+        log_warn "DNS resolution failed. Check /etc/resolv.conf"
+    fi
+}
+
+create_dirs() {
+    mkdir -p /home/wwwroot/default
+    mkdir -p /home/wwwlogs
+    mkdir -p "${cur_dir}/src"
+}
+
+install_docker() {
+    [[ "${Enable_Docker}" = 'y' ]] || return 0
+
+    if command -v docker &>/dev/null; then
+        log_info "Docker already installed, skipping."
+        return 0
+    fi
+
+    log_info "Installing Docker..."
+    curl -fsSL https://get.docker.com | sh 2>&1 | tee -a "$LOG_FILE"
+    systemctl enable docker
+    systemctl start docker
+
+    # Docker Compose plugin (included in modern docker)
+    if ! docker compose version &>/dev/null; then
+        apt-get install -y docker-compose-plugin 2>&1 | tee -a "$LOG_FILE"
+    fi
+
+    log_ok "Docker $(docker --version | awk '{print $3}') installed."
+}
+
+install_wp_cli() {
+    [[ "${Enable_WP_CLI}" = 'y' ]] || return 0
+
+    if [[ -x /usr/local/bin/wp ]]; then
+        log_info "WP-CLI already installed, skipping."
+        return 0
+    fi
+
+    log_info "Installing WP-CLI..."
+    curl -sS -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+    chmod +x /usr/local/bin/wp
+
+    if /usr/local/bin/wp --info &>/dev/null; then
+        log_ok "WP-CLI installed."
+    else
+        log_warn "WP-CLI installed but may need PHP in PATH to work."
+    fi
+}
+
+# Main entry
+prepare_system() {
+    setup_hosts
+    check_dns
+    create_dirs
+    install_deps
+    setup_timezone
+    setup_system_limits
+    setup_swap
+    install_docker
+    install_wp_cli
+}

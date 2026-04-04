@@ -1,0 +1,17 @@
+[Unit]
+Description=MySQL Server
+After=network.target
+
+[Service]
+Type=forking
+User=mysql
+Group=mysql
+PIDFile=/usr/local/mysql/var/mysql.pid
+ExecStart=/usr/local/mysql/bin/mysqld_safe --defaults-file=/etc/my.cnf
+ExecStop=/usr/local/mysql/bin/mysqladmin -u root shutdown
+LimitNOFILE=65535
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
