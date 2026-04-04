@@ -16,10 +16,10 @@ for arg in "$@"; do
 done
 [[ -n "$INSTALL_TARGET" ]] || { echo "Usage: $0 [--auto] {lnmp|nginx|db}"; exit 1; }
 
-# Load config
+# Load config (lnmp.conf = defaults, lnmp.conf.local = user overrides)
 source "${LNMP_DIR}/versions.conf"
-[[ -f "${LNMP_DIR}/lnmp.conf.local" ]] && source "${LNMP_DIR}/lnmp.conf.local"
 source "${LNMP_DIR}/lnmp.conf"
+[[ -f "${LNMP_DIR}/lnmp.conf.local" ]] && source "${LNMP_DIR}/lnmp.conf.local"
 source "${LNMP_DIR}/lib/common.sh"
 source "${LNMP_DIR}/lib/detect.sh"
 source "${LNMP_DIR}/lib/deps.sh"
