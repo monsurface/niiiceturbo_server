@@ -9,11 +9,16 @@
 PHP_BIN=/usr/local/php/bin/php
 PHPIZE=/usr/local/php/bin/phpize
 PHP_CONFIG=/usr/local/php/bin/php-config
-PHP_EXT_DIR=$($PHP_CONFIG --extension-dir 2>/dev/null)
+PHP_EXT_DIR=""
 PHP_INI_SCAN_DIR=/usr/local/php/etc/php.d
 
+_init_php_ext_dir() {
+    [[ -n "$PHP_EXT_DIR" ]] && return 0
+    PHP_EXT_DIR=$($PHP_CONFIG --extension-dir 2>/dev/null || echo "")
+}
+
 # Extension registry: name -> url_var, configure_opts, system_deps
-declare -A EXT_URL_VAR EXT_CONFIGURE EXT_DEPS
+declare -A EXT_URL_VAR EXT_CONFIGURE EXT_DEPS || true
 
 EXT_URL_VAR[redis]='REDIS_EXT_URL'
 EXT_CONFIGURE[redis]=''
@@ -55,6 +60,7 @@ list_extensions() {
 # Usage: install_extension <name>
 install_extension() {
     local ext="$1"
+    _init_php_ext_dir
 
     [[ -n "${EXT_URL_VAR[$ext]+x}" ]] || die "Unknown extension: ${ext}. Run with 'list' to see available."
 
@@ -110,6 +116,7 @@ install_extension() {
 # Uninstall a PHP extension
 uninstall_extension() {
     local ext="$1"
+    _init_php_ext_dir
     local ini_file="${PHP_INI_SCAN_DIR}/${ext}.ini"
     local so_file="${PHP_EXT_DIR}/${ext}.so"
 
