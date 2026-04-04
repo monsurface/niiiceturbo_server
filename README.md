@@ -8,8 +8,10 @@ All software compiled from source or installed via official binaries — no thir
 
 - **Ubuntu-only** — Supports Ubuntu 22.04 LTS and 24.04 LTS, clean and focused
 - **Compile from source** — Nginx with latest OpenSSL (HTTP/2, HTTP/3, TLS 1.3), PHP 8.3 with OPcache JIT
-- **Auto-tuning** — Nginx workers, MySQL InnoDB buffer pool, PHP-FPM children automatically calculated based on host CPU/RAM
+- **Auto-tuning** — Nginx workers, file cache, MySQL InnoDB buffer pool, PHP-FPM children automatically calculated based on host CPU/RAM
+- **System hardening** — TCP BBR, sysctl tuning, journald log limits, swap auto-creation
 - **Timezone unified** — Single `Timezone` setting applied across system, PHP (`date.timezone`), and MySQL (`default-time-zone`)
+- **IP protection** — Auto-generated catch-all server block prevents SSL certificate leakage via IP access
 - **PHP extension framework** — Registry-based PECL extension compilation: `./tools/addons.sh install redis`
 - **Batch extension install** — Pre-configure extensions in `lnmp.conf`, built automatically during installation
 - **Tools included** — Docker, Composer, WP-CLI installed by default (configurable)
@@ -17,7 +19,7 @@ All software compiled from source or installed via official binaries — no thir
 - **Security hardening** — SSH hardening, fail2ban, firewall (UFW or iptables)
 - **systemd native** — All services managed via systemd with auto-restart on failure
 - **100% official sources** — Every download comes from nginx.org, php.net, cdn.mysql.com, etc.
-- **Non-interactive mode** — `--auto` flag for fully automated deployment
+- **Non-interactive mode** — `--auto` flag for fully automated deployment (cloud-init / Terraform ready)
 
 ## Supported OS
 
@@ -31,7 +33,7 @@ All software compiled from source or installed via official binaries — no thir
 | Software | Version | Install Method |
 |----------|---------|----------------|
 | Nginx | 1.26.3 | Compile (with OpenSSL 3.2.3) |
-| MySQL | 8.0.40 | Binary |
+| MySQL | 8.0.42 | Binary |
 | MariaDB | 10.11.11 | Binary (alternative) |
 | PHP | 8.3.15 | Compile |
 | Redis | 7.2.7 | Compile (optional) |
@@ -51,7 +53,7 @@ vim lnmp.conf
 # Install full stack
 sudo ./install.sh lnmp
 
-# Or non-interactive
+# Or non-interactive (cloud-init / Terraform ready)
 sudo ./install.sh --auto lnmp
 ```
 
@@ -97,12 +99,24 @@ Configs are automatically optimized based on server specs:
 |-----------|---------|
 | Nginx `worker_processes` | = CPU cores |
 | Nginx `worker_connections` | = CPU cores × 1024 (max 65535) |
+| Nginx `open_file_cache max` | 50K ~ 900K based on RAM |
 | MySQL `innodb_buffer_pool_size` | = 50% of RAM (min 128M) |
 | MySQL `max_connections` | 64 ~ 512 based on RAM |
 | PHP-FPM `pm.max_children` | = 30% of RAM ÷ 40MB per child |
 | PHP `memory_limit` | 64M ~ 512M based on RAM |
 
 Swap is auto-created when RAM < 2GB.
+
+## System Initialization
+
+The installer automatically configures the host environment:
+
+- **TCP BBR** — Enables BBR congestion control (`net.ipv4.tcp_congestion_control = bbr`)
+- **sysctl tuning** — TCP fastopen, keepalive, port range, file limits, swappiness
+- **journald limits** — 100M total, 20M per file to prevent log bloat
+- **ulimit** — nofile/nproc set to 65535
+- **Swap** — Auto-created when RAM < 2GB
+- **Timezone** — System, PHP, and MySQL all set from single config value
 
 ## Install Modes
 
@@ -149,6 +163,7 @@ Features:
 - Auto HTTP→HTTPS 301 redirect
 - HSTS header
 - Expiry monitoring (≤7 days 🔴, ≤30 days ⚠️)
+- Default catch-all server rejects HTTPS to IP/unknown domains (`ssl_reject_handshake on`)
 
 ## PHP Extensions
 
@@ -210,16 +225,16 @@ lnmp-stack/
 ├── lib/
 │   ├── common.sh           # Logging, download, extract, build utilities
 │   ├── detect.sh           # OS detection, hardware detection, auto-tuning
-│   ├── deps.sh             # System deps, timezone, Docker, WP-CLI
-│   ├── nginx.sh            # Nginx compile (OpenSSL, jemalloc, Lua)
-│   ├── mysql.sh            # MySQL/MariaDB binary install
+│   ├── deps.sh             # System deps, timezone, BBR, journald, Docker, WP-CLI
+│   ├── nginx.sh            # Nginx compile (OpenSSL, jemalloc, Lua, catch-all)
+│   ├── mysql.sh            # MySQL/MariaDB binary install + lib fix
 │   ├── php.sh              # PHP compile + OPcache JIT + Composer
 │   ├── extensions.sh       # PECL extension compilation framework
 │   ├── security.sh         # SSH, fail2ban, UFW/iptables
 │   └── verify.sh           # Post-install health checks
 ├── conf/
 │   ├── nginx/              # Nginx config templates (auto-tuned)
-│   ├── mysql/my.cnf        # MySQL config template (auto-tuned)
+│   ├── mysql/my.cnf        # MySQL config template (auto-tuned, skip-log-bin)
 │   ├── php/                # php.ini + php-fpm.conf templates (auto-tuned)
 │   └── rewrite/            # URL rewrite rules (WordPress, Laravel, etc.)
 ├── systemd/                # Service unit files
