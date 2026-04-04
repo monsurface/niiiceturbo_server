@@ -136,9 +136,8 @@ case "$INSTALL_TARGET" in
         ;;
 esac
 
-# Install lnmp management command
-cp "${LNMP_DIR}/tools/lnmp" /usr/bin/lnmp
-chmod +x /usr/bin/lnmp
+# Install lnmp management command (symlink to source)
+ln -sf "${LNMP_DIR}/tools/lnmp" /usr/bin/lnmp
 
 # Verify
 verify_all

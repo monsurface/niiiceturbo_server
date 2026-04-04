@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # tools/lnmp — Service management command
-# Usage: lnmp {start|stop|restart|reload|status|vhost|kill}
+# Usage: lnmp {start|stop|restart|reload|status|vhost|ssl|db|reset-password|kill}
+
+# Resolve tools directory: same dir as this script, or installed location
+TOOLS_DIR="$(cd "$(dirname "$0")" && pwd)"
+[[ -f "${TOOLS_DIR}/vhost.sh" ]] || TOOLS_DIR="$(dirname "$(readlink -f "$0")")"
+[[ -f "${TOOLS_DIR}/vhost.sh" ]] || TOOLS_DIR="/root/lnmp-stack/tools"
 
 SERVICES_LNMP="nginx mysql php-fpm"
 
@@ -112,13 +117,8 @@ lnmp_kill() {
 
 # Vhost management — delegate to tools/vhost.sh
 lnmp_vhost() {
-    local script_dir="$(cd "$(dirname "$0")" && pwd)"
-    # Try installed location first, then source tree
-    local vhost_sh=""
-    for path in "${script_dir}/vhost.sh" /usr/local/lnmp-stack/tools/vhost.sh; do
-        [[ -f "$path" ]] && { vhost_sh="$path"; break; }
-    done
-    [[ -n "$vhost_sh" ]] || { echo "vhost.sh not found"; exit 1; }
+    local vhost_sh="${TOOLS_DIR}/vhost.sh"
+    [[ -f "$vhost_sh" ]] || { echo "vhost.sh not found"; exit 1; }
     bash "$vhost_sh" "$@"
 }
 
@@ -130,9 +130,9 @@ case "${1:-}" in
     status)  lnmp_status ;;
     kill)    lnmp_kill ;;
     vhost)   shift; lnmp_vhost "$@" ;;
-    ssl)     shift; bash "$(dirname "$0")/ssl.sh" "$@" 2>/dev/null || bash /usr/local/lnmp-stack/tools/ssl.sh "$@" ;;
-    db)      shift; bash "$(dirname "$0")/db.sh" "$@" 2>/dev/null || bash /usr/local/lnmp-stack/tools/db.sh "$@" ;;
-    reset-password) shift; bash "$(dirname "$0")/reset_mysql_password.sh" "$@" 2>/dev/null || bash /usr/local/lnmp-stack/tools/reset_mysql_password.sh "$@" ;;
+    ssl)     shift; bash "${TOOLS_DIR}/ssl.sh" "$@" ;;
+    db)      shift; bash "${TOOLS_DIR}/db.sh" "$@" ;;
+    reset-password) shift; bash "${TOOLS_DIR}/reset_mysql_password.sh" "$@" ;;
     *)
         echo "Usage: lnmp {start|stop|restart|reload|status|kill|vhost|ssl|db|reset-password}"
         echo ""
