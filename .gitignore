@@ -1,4 +1,5 @@
 src/
+lnmp.conf.local
 *.tar.gz
 *.tar.xz
 *.tar.bz2
