@@ -20,7 +20,7 @@ install_deps() {
         libsystemd-dev libevent-dev libmemcached-dev \
         zlib1g-dev liblz4-dev libzstd-dev \
         libmagickwand-dev libmagickcore-dev \
-        libncurses5-dev libaio-dev libpam0g-dev \
+        libncurses5-dev libaio-dev libaio1t64 libpam0g-dev \
         libnuma-dev numactl \
         screen cron logrotate \
     2>&1 | tee -a "$LOG_FILE"

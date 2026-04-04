@@ -9,12 +9,53 @@ install_mysql() {
     fi
 }
 
+# Fix shared library issues for MySQL binary package on Ubuntu 24.04+
+_fix_mysql_libs() {
+    log_info "Checking MySQL shared library dependencies..."
+
+    apt-get install -y libaio1t64 libncurses6 libtinfo6 libmecab2 2>&1 | tee -a "$LOG_FILE"
+
+    # MySQL 8.0 binary expects libaio.so.1 but Ubuntu 24.04 has libaio.so.1t64
+    if [[ ! -e /usr/lib/x86_64-linux-gnu/libaio.so.1 ]] && [[ -e /usr/lib/x86_64-linux-gnu/libaio.so.1t64 ]]; then
+        ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
+        log_info "Symlinked libaio.so.1t64 → libaio.so.1"
+    fi
+
+    # MySQL 8.0 binary expects libncurses.so.5 / libtinfo.so.5 but Ubuntu 24.04 has v6
+    if [[ ! -e /usr/lib/x86_64-linux-gnu/libncurses.so.5 ]]; then
+        ln -sf /usr/lib/x86_64-linux-gnu/libncurses.so.6 /usr/lib/x86_64-linux-gnu/libncurses.so.5
+        log_info "Symlinked libncurses.so.6 → libncurses.so.5"
+    fi
+    if [[ ! -e /usr/lib/x86_64-linux-gnu/libtinfo.so.5 ]]; then
+        ln -sf /usr/lib/x86_64-linux-gnu/libtinfo.so.6 /usr/lib/x86_64-linux-gnu/libtinfo.so.5
+        log_info "Symlinked libtinfo.so.6 → libtinfo.so.5"
+    fi
+
+    ldconfig
+}
+
+# Verify MySQL binary can find all shared libraries
+_verify_mysql_libs() {
+    local bin="$1"
+    local missing
+    missing=$(ldd "$bin" 2>&1 | grep 'not found' || true)
+    if [[ -n "$missing" ]]; then
+        log_err "Missing shared libraries for ${bin}:"
+        echo "$missing" | tee -a "$LOG_FILE"
+        die "Fix library dependencies before continuing."
+    fi
+    log_ok "Shared library check passed for $(basename "$bin")"
+}
+
 _install_mysql() {
     log_info "=== Installing MySQL ${MYSQL_VER} (binary) ==="
 
     local db_dir="${MySQL_Data_Dir:-/usr/local/mysql/var}"
 
     id -u mysql &>/dev/null || useradd -s /sbin/nologin -M mysql
+
+    # Ensure required shared libraries
+    _fix_mysql_libs
 
     download_src "MySQL" "$MYSQL_URL"
 
@@ -26,6 +67,9 @@ _install_mysql() {
     mkdir -p "$db_dir"
     chown -R mysql:mysql /usr/local/mysql
     chown -R mysql:mysql "$db_dir"
+
+    # Verify shared libraries before proceeding
+    _verify_mysql_libs /usr/local/mysql/bin/mysqld
 
     # Generate my.cnf from template
     _deploy_mysql_conf "$db_dir"
@@ -49,6 +93,9 @@ _install_mysql() {
 
     # Secure installation
     _secure_mysql "$db_dir"
+
+    # Load timezone tables so named timezones (e.g. Asia/Taipei) work in queries
+    _load_mysql_tz
 
     # Symlinks
     ln -sf /usr/local/mysql/bin/mysql /usr/bin/mysql
@@ -114,13 +161,30 @@ _deploy_mysql_conf() {
     local db_dir="$1"
     local tz="${Timezone:-UTC}"
 
+    # MySQL requires UTC offset format for default-time-zone before timezone tables are loaded
+    # Convert named timezone to offset using system date command
+    local tz_offset
+    tz_offset=$(TZ="$tz" date +%:z 2>/dev/null || echo "+00:00")
+
     sed -e "s|{{DATA_DIR}}|${db_dir}|g" \
         -e "s|{{INNODB_BUFFER_POOL}}|${MYSQL_INNODB_BUFFER_POOL}M|g" \
         -e "s|{{MAX_CONNECTIONS}}|${MYSQL_MAX_CONNECTIONS}|g" \
-        -e "s|{{TIMEZONE}}|${tz}|g" \
+        -e "s|{{TIMEZONE}}|${tz_offset}|g" \
         "${cur_dir}/conf/mysql/my.cnf" > /etc/my.cnf
 
-    log_info "MySQL config deployed (buffer_pool=${MYSQL_INNODB_BUFFER_POOL}M, max_conn=${MYSQL_MAX_CONNECTIONS})"
+    log_info "MySQL config deployed (buffer_pool=${MYSQL_INNODB_BUFFER_POOL}M, max_conn=${MYSQL_MAX_CONNECTIONS}, tz=${tz_offset})"
+}
+
+_load_mysql_tz() {
+    local mysql_bin
+    if [[ "${DB_Type}" = 'mariadb' ]]; then
+        mysql_bin=/usr/local/mariadb/bin/mysql
+        /usr/local/mariadb/bin/mysql_tzinfo_to_sql /usr/share/zoneinfo 2>/dev/null | ${mysql_bin} -u root mysql 2>/dev/null
+    else
+        mysql_bin=/usr/local/mysql/bin/mysql
+        /usr/local/mysql/bin/mysql_tzinfo_to_sql /usr/share/zoneinfo 2>/dev/null | ${mysql_bin} -u root mysql 2>/dev/null
+    fi
+    log_info "MySQL timezone tables loaded."
 }
 
 _secure_mysql() {
