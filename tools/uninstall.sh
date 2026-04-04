@@ -101,7 +101,7 @@ rm -rf /usr/local/acme.sh
 
 # jemalloc
 rm -f /usr/local/lib/libjemalloc*
-rm -f /usr/local/include/jemalloc/
+rm -rf /usr/local/include/jemalloc
 rm -f /usr/local/bin/jemalloc*
 
 # ─── Remove systemd units ───
