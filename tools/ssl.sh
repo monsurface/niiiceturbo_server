@@ -20,6 +20,9 @@ _ensure_acme() {
     curl -sS https://get.acme.sh | sh -s email="$email"
     ln -sf ~/.acme.sh "$ACME_HOME"
 
+    # Use Let's Encrypt as default CA
+    "$ACME_BIN" --set-default-ca --server letsencrypt
+
     # Auto-upgrade
     "$ACME_BIN" --upgrade --auto-upgrade
 
@@ -69,7 +72,7 @@ ssl_install() {
 
     # Issue certificate
     echo "Issuing certificate for ${domain}..."
-    "$ACME_BIN" --issue ${domain_args} -w "$webroot" --keylength "$keytype" \
+    "$ACME_BIN" --issue ${domain_args} -w "$webroot" --keylength "$keytype" --server letsencrypt \
         || { echo "Certificate issuance failed."; exit 1; }
 
     # Install certificate
