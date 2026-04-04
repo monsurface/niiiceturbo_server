@@ -127,6 +127,7 @@ _deploy_nginx_conf() {
     # Generate nginx.conf from template with tuning params
     sed -e "s|{{WORKER_PROCESSES}}|${NGINX_WORKER_PROCESSES}|g" \
         -e "s|{{WORKER_CONNECTIONS}}|${NGINX_WORKER_CONNECTIONS}|g" \
+        -e "s|{{OPEN_FILE_CACHE_MAX}}|${NGINX_OPEN_FILE_CACHE_MAX}|g" \
         "${cur_dir}/conf/nginx/nginx.conf" > /usr/local/nginx/conf/nginx.conf
 
     # Copy additional config files

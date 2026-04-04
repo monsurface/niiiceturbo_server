@@ -48,6 +48,17 @@ calc_tuning_params() {
     NGINX_WORKER_CONNECTIONS=$(( CPU_CORES * 1024 ))
     [[ $NGINX_WORKER_CONNECTIONS -gt 65535 ]] && NGINX_WORKER_CONNECTIONS=65535
 
+    # Nginx open_file_cache — scale with RAM
+    if [[ $RAM_MB -le 512 ]]; then
+        NGINX_OPEN_FILE_CACHE_MAX=50000
+    elif [[ $RAM_MB -le 1024 ]]; then
+        NGINX_OPEN_FILE_CACHE_MAX=100000
+    elif [[ $RAM_MB -le 4096 ]]; then
+        NGINX_OPEN_FILE_CACHE_MAX=300000
+    else
+        NGINX_OPEN_FILE_CACHE_MAX=900000
+    fi
+
     # MySQL InnoDB buffer pool — 50% of RAM (min 128M)
     MYSQL_INNODB_BUFFER_POOL=$(( RAM_MB * 50 / 100 ))
     [[ $MYSQL_INNODB_BUFFER_POOL -lt 128 ]] && MYSQL_INNODB_BUFFER_POOL=128
