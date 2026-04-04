@@ -35,6 +35,7 @@ install_nginx() {
         --with-http_flv_module
         --with-http_mp4_module
         --with-http_realip_module
+        --with-http_auth_request_module
         --with-http_secure_link_module
         --with-http_xslt_module
         --with-stream
