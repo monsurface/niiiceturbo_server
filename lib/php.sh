@@ -90,6 +90,9 @@ install_php() {
     # Install Composer
     [[ "${Enable_Composer}" = 'y' ]] && _install_composer
 
+    # phpMyAdmin
+    [[ "${Enable_phpMyAdmin}" = 'y' ]] && _install_phpmyadmin
+
     # phpinfo for verification
     echo "<?php phpinfo(); ?>" > "${Default_Website_Dir:-/home/wwwroot/default}/phpinfo.php"
 
@@ -140,4 +143,30 @@ _install_composer() {
     else
         log_warn "Composer installation failed. Install manually later."
     fi
+}
+
+_install_phpmyadmin() {
+    local dest="${Default_Website_Dir:-/home/wwwroot/default}/phpmyadmin"
+
+    if [[ -d "$dest" ]]; then
+        log_info "phpMyAdmin already exists at ${dest}, skipping."
+        return 0
+    fi
+
+    log_info "Installing phpMyAdmin ${PHPMYADMIN_VER}..."
+    download_src "phpMyAdmin" "$PHPMYADMIN_URL"
+
+    local filename="$(basename "$PHPMYADMIN_URL")"
+    cd "${cur_dir}/src"
+    tar Jxf "$filename"
+    mv "phpMyAdmin-${PHPMYADMIN_VER}-all-languages" "$dest"
+
+    # Generate blowfish secret
+    local secret
+    secret="$(openssl rand -hex 16)"
+    cp "${dest}/config.sample.inc.php" "${dest}/config.inc.php"
+    sed -i "s|\$cfg\['blowfish_secret'\] = ''|\$cfg['blowfish_secret'] = '${secret}'|" "${dest}/config.inc.php"
+
+    chown -R www:www "$dest"
+    log_ok "phpMyAdmin installed at http://<IP>/phpmyadmin/"
 }
