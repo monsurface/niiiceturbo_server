@@ -43,15 +43,65 @@ lnmp_reload() {
 
 lnmp_status() {
     local db_svc=$(get_db_service)
-    echo "=== LNMP Status ==="
-    for svc in nginx "$db_svc" php-fpm; do
-        local status="stopped"
-        systemctl is-active --quiet "$svc" && status="running"
-        printf "  %-12s %s\n" "${svc}:" "$status"
-    done
+
     echo ""
-    echo "Listening ports:"
-    ss -tlnp | grep -E ':(80|443|3306|9000) ' 2>/dev/null || echo "  (none detected)"
+    echo "┌─────────────────────────────────────────────┐"
+    echo "│             LNMP Stack Status                │"
+    echo "├──────────────┬──────────┬────────────────────┤"
+    echo "│ Service      │ Status   │ Info               │"
+    echo "├──────────────┼──────────┼────────────────────┤"
+
+    for svc in nginx "$db_svc" php-fpm redis; do
+        local status="stopped"
+        local info="-"
+        local icon="✗"
+
+        if systemctl is-active --quiet "$svc" 2>/dev/null; then
+            status="running"
+            icon="✓"
+        elif ! systemctl list-unit-files "${svc}.service" &>/dev/null; then
+            status="n/a"
+            icon="–"
+        fi
+
+        # Gather version/info
+        case "$svc" in
+            nginx)
+                [[ -x /usr/local/nginx/sbin/nginx ]] && info=$(/usr/local/nginx/sbin/nginx -v 2>&1 | sed 's|.*/||') || info="-"
+                ;;
+            mysql|mariadb)
+                if [[ "$status" = "running" ]]; then
+                    info=$(mysql -u root -e "SELECT VERSION();" -sN 2>/dev/null || echo "-")
+                fi
+                ;;
+            php-fpm)
+                [[ -x /usr/local/php/bin/php ]] && info=$(/usr/local/php/bin/php -r 'echo PHP_VERSION;' 2>/dev/null) || info="-"
+                ;;
+            redis)
+                [[ -x /usr/local/redis/bin/redis-server ]] && info=$(/usr/local/redis/bin/redis-server --version 2>/dev/null | awk '{print $3}' | cut -d= -f2) || info="-"
+                ;;
+        esac
+
+        printf "│ %-12s │ %s %-6s │ %-18s │\n" "$svc" "$icon" "$status" "$info"
+    done
+
+    echo "├──────────────┴──────────┴────────────────────┤"
+    echo "│ Ports                                        │"
+    echo "├──────────────────────────────────────────────┤"
+
+    local found_port=0
+    for port in 80 443 3306 6379; do
+        local proc
+        proc=$(ss -tlnp 2>/dev/null | grep ":${port} " | awk '{print $NF}' | sed 's/.*"\(.*\)".*/\1/' | head -1)
+        if [[ -n "$proc" ]]; then
+            printf "│  %-6s → %-35s │\n" ":${port}" "$proc"
+            found_port=1
+        fi
+    done
+    [[ $found_port -eq 0 ]] && echo "│  (no ports detected)                         │"
+
+    echo "└──────────────────────────────────────────────┘"
+    echo ""
 }
 
 lnmp_kill() {
