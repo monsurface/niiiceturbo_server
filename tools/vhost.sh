@@ -62,7 +62,7 @@ EOF
     # SSL setup
     if [[ "${enable_ssl}" =~ ^[Yy]$ ]]; then
         local script_dir="$(cd "$(dirname "$0")" && pwd)"
-        bash "${script_dir}/ssl.sh" install
+        bash "${script_dir}/ssl.sh" install "$domain" "$more_domains" "$webroot"
     fi
 
     # Test and reload

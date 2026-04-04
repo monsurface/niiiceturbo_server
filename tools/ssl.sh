@@ -29,20 +29,29 @@ _ensure_acme() {
 ssl_install() {
     _ensure_acme
 
-    read -r -p "Domain (e.g. example.com): " domain
+    local domain="${1:-}"
+    local more_domains="${2:-}"
+    local webroot="${3:-}"
+
+    [[ -n "$domain" ]] || read -r -p "Domain (e.g. example.com): " domain
     [[ -n "$domain" ]] || { echo "Domain required."; exit 1; }
 
-    read -r -p "More domains (space-separated, or empty): " more_domains
+    if [[ -z "$more_domains" && -z "${1:-}" ]]; then
+        read -r -p "More domains (space-separated, or empty): " more_domains
+    fi
 
     # Detect webroot from existing vhost
-    local webroot=""
-    local vhost_conf="${VHOST_DIR}/${domain}.conf"
-    if [[ -f "$vhost_conf" ]]; then
-        webroot=$(grep -m1 'root ' "$vhost_conf" | awk '{print $2}' | tr -d ';')
+    if [[ -z "$webroot" ]]; then
+        local vhost_conf="${VHOST_DIR}/${domain}.conf"
+        if [[ -f "$vhost_conf" ]]; then
+            webroot=$(grep -m1 'root ' "$vhost_conf" | awk '{print $2}' | tr -d ';')
+        fi
+        [[ -z "$webroot" ]] && webroot="/home/wwwroot/${domain}"
+        if [[ -z "${1:-}" ]]; then
+            read -r -p "Webroot [${webroot}]: " custom_root
+            [[ -n "$custom_root" ]] && webroot="$custom_root"
+        fi
     fi
-    [[ -z "$webroot" ]] && webroot="/home/wwwroot/${domain}"
-    read -r -p "Webroot [${webroot}]: " custom_root
-    [[ -n "$custom_root" ]] && webroot="$custom_root"
 
     read -r -p "Key type (ec-256 / rsa-2048) [ec-256]: " keytype
     keytype="${keytype:-ec-256}"
