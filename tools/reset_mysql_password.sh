@@ -30,11 +30,10 @@ if $MYSQL_BIN -u root -e "SELECT 1;" &>/dev/null; then
 else
     echo "Cannot connect. Resetting via safe mode..."
 
-    local db_svc="mysql"
+    db_svc="mysql"
     systemctl is-active --quiet mariadb 2>/dev/null && db_svc="mariadb"
     systemctl stop "$db_svc"
 
-    # Start with skip-grant-tables
     MYSQLD_BIN=""
     for bin in /usr/local/mysql/bin/mysqld /usr/local/mariadb/bin/mariadbd; do
         [[ -x "$bin" ]] && MYSQLD_BIN="$bin" && break
