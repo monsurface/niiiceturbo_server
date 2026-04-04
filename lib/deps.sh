@@ -6,6 +6,8 @@ install_deps() {
 
     export DEBIAN_FRONTEND=noninteractive
 
+    wait_apt_lock
+
     apt-get update -y
     apt-get install -y --no-install-recommends \
         build-essential gcc g++ make cmake autoconf automake \

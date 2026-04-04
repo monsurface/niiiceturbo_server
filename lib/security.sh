@@ -44,6 +44,7 @@ _harden_nginx() {
 
 _install_fail2ban() {
     log_info "Installing fail2ban..."
+    wait_apt_lock
     apt-get install -y fail2ban 2>&1 | tee -a "$LOG_FILE"
 
     cat > /etc/fail2ban/jail.local <<'EOF'
@@ -72,6 +73,7 @@ EOF
 
 _setup_ufw() {
     log_info "Configuring UFW firewall..."
+    wait_apt_lock
     apt-get install -y ufw 2>&1 | tee -a "$LOG_FILE"
 
     ufw default deny incoming
@@ -86,6 +88,7 @@ _setup_ufw() {
 
 _setup_iptables() {
     log_info "Configuring iptables firewall..."
+    wait_apt_lock
     apt-get install -y iptables-persistent 2>&1 | tee -a "$LOG_FILE"
 
     # Flush

@@ -13,6 +13,14 @@ log_warn()  { echo -e "${YELLOW}[WARN]${NC} $*" | tee -a "$LOG_FILE"; }
 log_err()   { echo -e "${RED}[ERROR]${NC} $*" | tee -a "$LOG_FILE"; }
 die()       { log_err "$*"; exit 1; }
 
+# Wait for apt/dpkg lock before running apt commands
+wait_apt_lock() {
+    while fuser /var/lib/dpkg/lock-frontend &>/dev/null 2>&1; do
+        log_info "Waiting for apt lock..."
+        sleep 3
+    done
+}
+
 check_root() {
     [[ $EUID -eq 0 ]] || die "This script must be run as root"
 }

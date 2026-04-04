@@ -12,6 +12,7 @@ install_mysql() {
 # Fix shared library issues for MySQL binary package on Ubuntu 24.04+
 _fix_mysql_libs() {
     log_info "Checking MySQL shared library dependencies..."
+    wait_apt_lock
 
     apt-get install -y libaio1t64 libncurses6 libtinfo6 libmecab2 2>&1 | tee -a "$LOG_FILE"
 
