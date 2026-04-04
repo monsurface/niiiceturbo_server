@@ -91,6 +91,10 @@ server {
     location ~ /\. {
         deny all;
     }
+
+    location ^~ /.well-known/acme-challenge/ {
+        allow all;
+    }
 }
 EOF
 
