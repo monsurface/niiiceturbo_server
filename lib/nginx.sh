@@ -136,6 +136,9 @@ _deploy_nginx_conf() {
     # Copy rewrite rules
     [[ -d "${cur_dir}/conf/rewrite" ]] && cp -r "${cur_dir}/conf/rewrite" /usr/local/nginx/conf/
 
+    # Default catch-all: self-signed cert + reject unknown hosts
+    _setup_default_catch_all
+
     # Default vhost
     local default_dir="${Default_Website_Dir:-/home/wwwroot/default}"
     mkdir -p "$default_dir"
@@ -149,4 +152,21 @@ _deploy_nginx_conf() {
 <html><head><meta charset="utf-8"><title>Server Ready</title></head>
 <body><h1>It works!</h1><p>LNMP stack is running.</p></body></html>
 INDEXEOF
+}
+
+_setup_default_catch_all() {
+    local ssl_dir="/usr/local/nginx/conf/ssl"
+    mkdir -p "$ssl_dir"
+
+    # Generate self-signed cert for default server (reject unknown hosts)
+    if [[ ! -f "${ssl_dir}/default.crt" ]]; then
+        openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+            -keyout "${ssl_dir}/default.key" \
+            -out "${ssl_dir}/default.crt" \
+            -subj "/CN=default.invalid" 2>/dev/null
+        log_info "Generated self-signed cert for default catch-all server."
+    fi
+
+    # Deploy catch-all config (loaded before vhost/* via include order)
+    cp "${cur_dir}/conf/nginx/default_catch_all.conf" /usr/local/nginx/conf/default_catch_all.conf
 }
