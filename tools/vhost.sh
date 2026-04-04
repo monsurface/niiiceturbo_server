@@ -1,29 +1,64 @@
 #!/usr/bin/env bash
 # tools/vhost.sh — Virtual host management
+# Interactive or CLI mode
 set -euo pipefail
 
 VHOST_DIR="/usr/local/nginx/conf/vhost"
 WEBROOT_BASE="/home/wwwroot"
 REWRITE_DIR="/usr/local/nginx/conf/rewrite"
 
+show_add_usage() {
+    echo "Usage: vhost.sh add <domain> [options]"
+    echo ""
+    echo "Options:"
+    echo "  --domains \"d1 d2\"   Additional domains (aliases)"
+    echo "  --webroot /path     Custom web root (default: /home/wwwroot/<domain>)"
+    echo "  --rewrite name      Rewrite rule: wordpress, laravel, thinkphp, yii2, none"
+    echo "  --ssl               Enable Let's Encrypt SSL"
+    echo ""
+    echo "Examples:"
+    echo "  vhost.sh add example.com --rewrite wordpress --ssl"
+    echo "  vhost.sh add example.com --domains \"www.example.com\" --rewrite laravel"
+}
+
 vhost_add() {
-    read -r -p "Domain name (e.g. example.com): " domain
-    [[ -n "$domain" ]] || { echo "Domain cannot be empty."; exit 1; }
+    local domain="" more_domains="" webroot="" rewrite="none" enable_ssl="n"
 
-    read -r -p "More domains (space-separated, or leave empty): " more_domains
+    # Parse CLI args
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --domains)  more_domains="$2"; shift 2 ;;
+            --webroot)  webroot="$2"; shift 2 ;;
+            --rewrite)  rewrite="$2"; shift 2 ;;
+            --ssl)      enable_ssl="y"; shift ;;
+            --help|-h)  show_add_usage; exit 0 ;;
+            -*)         echo "Unknown option: $1"; show_add_usage; exit 1 ;;
+            *)          [[ -z "$domain" ]] && domain="$1" || more_domains="${more_domains:+$more_domains }$1"; shift ;;
+        esac
+    done
 
-    local webroot="${WEBROOT_BASE}/${domain}"
-    read -r -p "Web root [${webroot}]: " custom_root
-    [[ -n "$custom_root" ]] && webroot="$custom_root"
+    # Interactive fallback for missing values
+    if [[ -z "$domain" ]]; then
+        read -r -p "Domain name (e.g. example.com): " domain
+        [[ -n "$domain" ]] || { echo "Domain cannot be empty."; exit 1; }
 
-    # Rewrite rule
-    echo "Available rewrite rules:"
-    ls "${REWRITE_DIR}/" 2>/dev/null | sed 's/\.conf$//' | while read -r r; do echo "  $r"; done
-    read -r -p "Rewrite rule (or 'none'): " rewrite
-    rewrite="${rewrite:-none}"
+        read -r -p "More domains (space-separated, or empty): " more_domains
 
-    # SSL
-    read -r -p "Enable SSL via Let's Encrypt? [y/N]: " enable_ssl
+        [[ -n "$webroot" ]] || {
+            local default_root="${WEBROOT_BASE}/${domain}"
+            read -r -p "Web root [${default_root}]: " webroot
+            webroot="${webroot:-$default_root}"
+        }
+
+        echo "Available rewrite rules:"
+        ls "${REWRITE_DIR}/" 2>/dev/null | sed 's/\.conf$//' | while read -r r; do echo "  $r"; done
+        read -r -p "Rewrite rule (or 'none') [${rewrite}]: " input_rewrite
+        rewrite="${input_rewrite:-$rewrite}"
+
+        read -r -p "Enable SSL via Let's Encrypt? [y/N]: " enable_ssl
+    fi
+
+    webroot="${webroot:-${WEBROOT_BASE}/${domain}}"
 
     # Create webroot
     mkdir -p "$webroot"
@@ -73,7 +108,8 @@ EOF
 }
 
 vhost_del() {
-    read -r -p "Domain to remove: " domain
+    local domain="${1:-}"
+    [[ -n "$domain" ]] || read -r -p "Domain to remove: " domain
     [[ -n "$domain" ]] || exit 1
 
     local conf_file="${VHOST_DIR}/${domain}.conf"
@@ -91,14 +127,24 @@ vhost_list() {
     for f in "${VHOST_DIR}"/*.conf; do
         [[ -f "$f" ]] || continue
         local name=$(basename "$f" .conf)
+        [[ "$name" = "default" ]] && continue
         local domains=$(grep -m1 'server_name' "$f" | sed 's/.*server_name //;s/;//')
         printf "  %-30s %s\n" "$name" "$domains"
     done
 }
 
 case "${1:-}" in
-    add)  vhost_add ;;
-    del)  vhost_del ;;
+    add)  shift; vhost_add "$@" ;;
+    del)  shift; vhost_del "$@" ;;
     list) vhost_list ;;
-    *)    echo "Usage: vhost.sh {add|del|list}"; exit 1 ;;
+    *)
+        echo "Usage: vhost.sh {add|del|list}"
+        echo ""
+        echo "  add [domain] [options]  — Add virtual host"
+        echo "  del [domain]            — Remove virtual host"
+        echo "  list                    — List virtual hosts"
+        echo ""
+        echo "Run 'vhost.sh add --help' for add options."
+        exit 1
+        ;;
 esac
