@@ -169,5 +169,4 @@ prepare_system() {
     setup_journald
     setup_swap
     install_docker
-    install_wp_cli
 }

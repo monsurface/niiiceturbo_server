@@ -76,6 +76,7 @@ case "$INSTALL_TARGET" in
         install_nginx
         install_mysql
         install_php
+        install_wp_cli
         _install_php_extensions
         ;;
     nginx)
