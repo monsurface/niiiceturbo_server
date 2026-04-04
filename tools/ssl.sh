@@ -205,7 +205,8 @@ _apply_ssl_vhost() {
     cat >> "$vhost_conf" <<EOF
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
+    http2 on;
     server_name ${server_names};
     root ${webroot};
     index index.html index.htm index.php;
