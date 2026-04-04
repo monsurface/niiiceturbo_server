@@ -204,7 +204,18 @@ _secure_mysql() {
         DB_Root_Password="${MySQL_Root_Password}"
     else
         DB_Root_Password="$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)"
-        log_warn "No MySQL_Root_Password in lnmp.conf, generated random: saved to /root/.my.cnf"
+        # Persist generated password to lnmp.conf.local
+        local local_conf="${cur_dir}/lnmp.conf.local"
+        if [[ -f "$local_conf" ]]; then
+            if grep -q '^MySQL_Root_Password=' "$local_conf"; then
+                sed -i "s|^MySQL_Root_Password=.*|MySQL_Root_Password='${DB_Root_Password}'|" "$local_conf"
+            else
+                echo "MySQL_Root_Password='${DB_Root_Password}'" >> "$local_conf"
+            fi
+        else
+            echo "MySQL_Root_Password='${DB_Root_Password}'" > "$local_conf"
+        fi
+        log_info "Generated random MySQL root password → saved to lnmp.conf.local"
     fi
 
     ${mysql_bin} -u root <<-EOSQL
