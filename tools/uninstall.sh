@@ -136,9 +136,12 @@ if [[ "$MODE" = 'reset' ]]; then
     userdel www 2>/dev/null || true
     userdel mysql 2>/dev/null || true
 
-    # Clean src cache
-    SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-    [[ -d "${SCRIPT_DIR}/src" ]] && rm -rf "${SCRIPT_DIR}/src/"*
+    # Clean src cache (keep downloaded tarballs for faster reinstall)
+    # Use --purge to also remove src cache
+    if [[ "${2:-}" = '--purge' ]]; then
+        SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+        [[ -d "${SCRIPT_DIR}/src" ]] && rm -rf "${SCRIPT_DIR}/src/"*
+    fi
 else
     echo "Preserving /home/wwwroot/ (website files)"
     echo "Preserving /home/wwwlogs/ (logs)"
