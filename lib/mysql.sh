@@ -86,9 +86,9 @@ _install_mysql() {
 
     # Wait for startup
     local i
-    for i in $(seq 1 30); do
+    for i in $(seq 1 60); do
         /usr/local/mysql/bin/mysqladmin -u root ping &>/dev/null && break
-        sleep 1
+        sleep 2
     done
 
     # Secure installation
@@ -133,16 +133,17 @@ _install_mariadb() {
     /usr/local/mariadb/scripts/mysql_install_db --user=mysql \
         --basedir=/usr/local/mariadb --datadir="$db_dir" 2>&1 | tee -a "$LOG_FILE"
 
-    sed "s|/usr/local/mysql|/usr/local/mariadb|g" \
+    sed -e "s|/usr/local/mysql|/usr/local/mariadb|g" \
+        -e "s|mysqld|mariadbd|g" \
         "${cur_dir}/systemd/mysql.service" > /etc/systemd/system/mariadb.service
     systemctl daemon-reload
     systemctl enable mariadb
     systemctl start mariadb
 
     local i
-    for i in $(seq 1 30); do
+    for i in $(seq 1 60); do
         /usr/local/mariadb/bin/mysqladmin -u root ping &>/dev/null && break
-        sleep 1
+        sleep 2
     done
 
     _secure_mysql "$db_dir"
