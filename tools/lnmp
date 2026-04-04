@@ -132,18 +132,20 @@ case "${1:-}" in
     vhost)   shift; lnmp_vhost "$@" ;;
     ssl)     shift; bash "$(dirname "$0")/ssl.sh" "$@" 2>/dev/null || bash /usr/local/lnmp-stack/tools/ssl.sh "$@" ;;
     db)      shift; bash "$(dirname "$0")/db.sh" "$@" 2>/dev/null || bash /usr/local/lnmp-stack/tools/db.sh "$@" ;;
+    reset-password) shift; bash "$(dirname "$0")/reset_mysql_password.sh" "$@" 2>/dev/null || bash /usr/local/lnmp-stack/tools/reset_mysql_password.sh "$@" ;;
     *)
-        echo "Usage: lnmp {start|stop|restart|reload|status|kill|vhost|ssl|db}"
+        echo "Usage: lnmp {start|stop|restart|reload|status|kill|vhost|ssl|db|reset-password}"
         echo ""
-        echo "  start    — Start all LNMP services"
-        echo "  stop     — Stop all LNMP services"
-        echo "  restart  — Restart all LNMP services"
-        echo "  reload   — Reload Nginx and PHP-FPM configs"
-        echo "  status   — Show service status"
-        echo "  kill     — Force kill all LNMP processes"
-        echo "  vhost    — Virtual host management (add|del|list)"
-        echo "  ssl      — SSL certificate management (install|renew|revoke|list|self)"
-        echo "  db       — Database management (add|del|list|import|export)"
+        echo "  start          — Start all LNMP services"
+        echo "  stop           — Stop all LNMP services"
+        echo "  restart        — Restart all LNMP services"
+        echo "  reload         — Reload Nginx and PHP-FPM configs"
+        echo "  status         — Show service status"
+        echo "  kill           — Force kill all LNMP processes"
+        echo "  vhost          — Virtual host management (add|del|list)"
+        echo "  ssl            — SSL certificate management (install|renew|revoke|list|self)"
+        echo "  db             — Database management (add|del|list|import|export)"
+        echo "  reset-password — Reset MySQL root password (from lnmp.conf or interactive)"
         exit 1
         ;;
 esac
