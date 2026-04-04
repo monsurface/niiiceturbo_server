@@ -199,8 +199,13 @@ _secure_mysql() {
         mysql_bin=/usr/local/mysql/bin/mysql
     fi
 
-    # Generate random root password
-    DB_Root_Password="$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)"
+    # Generate or use configured root password
+    if [[ -n "${MySQL_Root_Password:-}" && "${MySQL_Root_Password}" != 'your_secure_password_here' ]]; then
+        DB_Root_Password="${MySQL_Root_Password}"
+    else
+        DB_Root_Password="$(openssl rand -base64 16 | tr -dc 'A-Za-z0-9' | head -c 16)"
+        log_warn "No MySQL_Root_Password in lnmp.conf, generated random: saved to /root/.my.cnf"
+    fi
 
     ${mysql_bin} -u root <<-EOSQL
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${DB_Root_Password}';

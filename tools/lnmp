@@ -81,8 +81,9 @@ case "${1:-}" in
     kill)    lnmp_kill ;;
     vhost)   shift; lnmp_vhost "$@" ;;
     ssl)     shift; bash "$(dirname "$0")/ssl.sh" "$@" 2>/dev/null || bash /usr/local/lnmp-stack/tools/ssl.sh "$@" ;;
+    db)      shift; bash "$(dirname "$0")/db.sh" "$@" 2>/dev/null || bash /usr/local/lnmp-stack/tools/db.sh "$@" ;;
     *)
-        echo "Usage: lnmp {start|stop|restart|reload|status|kill|vhost|ssl}"
+        echo "Usage: lnmp {start|stop|restart|reload|status|kill|vhost|ssl|db}"
         echo ""
         echo "  start    — Start all LNMP services"
         echo "  stop     — Stop all LNMP services"
@@ -92,6 +93,7 @@ case "${1:-}" in
         echo "  kill     — Force kill all LNMP processes"
         echo "  vhost    — Virtual host management (add|del|list)"
         echo "  ssl      — SSL certificate management (install|renew|revoke|list|self)"
+        echo "  db       — Database management (add|del|list|import|export)"
         exit 1
         ;;
 esac
