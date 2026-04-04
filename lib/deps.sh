@@ -97,6 +97,14 @@ setup_hosts() {
     fi
 }
 
+setup_sudoers() {
+    # Allow sudo group to run without password
+    if ! grep -q '^%sudo.*NOPASSWD' /etc/sudoers 2>/dev/null; then
+        sed -i 's/^%sudo.*ALL=(ALL:ALL) ALL/%sudo   ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
+        log_ok "sudo NOPASSWD enabled for sudo group."
+    fi
+}
+
 check_dns() {
     if ! ping -c1 -W5 google.com &>/dev/null; then
         log_warn "DNS resolution failed. Check /etc/resolv.conf"
@@ -152,6 +160,7 @@ install_wp_cli() {
 # Main entry
 prepare_system() {
     setup_hosts
+    setup_sudoers
     check_dns
     create_dirs
     install_deps
