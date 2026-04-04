@@ -90,10 +90,14 @@ tar_cd() {
 make_install() {
     local jobs
     jobs=$(nproc 2>/dev/null || echo 1)
+
     make -j"$jobs" 2>&1 | tee -a "$LOG_FILE"
-    [[ ${PIPESTATUS[0]} -eq 0 ]] || die "make failed"
+    local make_rc=${PIPESTATUS[0]}
+    [[ $make_rc -eq 0 ]] || die "make failed (exit code: $make_rc)"
+
     make install 2>&1 | tee -a "$LOG_FILE"
-    [[ ${PIPESTATUS[0]} -eq 0 ]] || die "make install failed"
+    local install_rc=${PIPESTATUS[0]}
+    [[ $install_rc -eq 0 ]] || die "make install failed (exit code: $install_rc)"
 }
 
 # Create symlink if not exists

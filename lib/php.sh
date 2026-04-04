@@ -72,6 +72,9 @@ install_php() {
     _deploy_php_conf
     _deploy_phpfpm_conf
 
+    # Ensure runtime directories
+    mkdir -p /usr/local/php/var/run
+
     # Install systemd unit
     cp "${cur_dir}/systemd/php-fpm.service" /etc/systemd/system/php-fpm.service
     systemctl daemon-reload
@@ -123,7 +126,7 @@ _deploy_phpfpm_conf() {
         -e "s|{{MAX_SPARE}}|${PHP_FPM_MAX_SPARE}|g" \
         "${cur_dir}/conf/php/php-fpm.conf" > /usr/local/php/etc/php-fpm.conf
 
-    cp "${cur_dir}/conf/php/www.conf" /usr/local/php/etc/php-fpm.d/www.conf 2>/dev/null
+    cp "${cur_dir}/conf/php/www.conf" /usr/local/php/etc/php-fpm.d/www.conf 2>/dev/null || true
 
     log_info "PHP-FPM config: max_children=${PHP_FPM_MAX_CHILDREN}, memory_limit=${PHP_MEMORY_LIMIT}"
 }
