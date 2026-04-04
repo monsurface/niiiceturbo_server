@@ -5,6 +5,7 @@ install_deps() {
     log_info "Installing system dependencies..."
 
     export DEBIAN_FRONTEND=noninteractive
+    export NEEDRESTART_MODE=a
 
     wait_apt_lock
 
@@ -128,7 +129,7 @@ install_docker() {
     fi
 
     log_info "Installing Docker..."
-    curl -fsSL https://get.docker.com | sh 2>&1 | tee -a "$LOG_FILE"
+    curl -fsSL https://get.docker.com | sh -s -- 2>&1 | tee -a "$LOG_FILE"
     systemctl enable docker
     systemctl start docker
 
