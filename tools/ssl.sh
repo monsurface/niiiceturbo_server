@@ -212,6 +212,7 @@ server {
         fastcgi_pass unix:/tmp/php-cgi.sock;
         fastcgi_index index.php;
         include fastcgi.conf;
+        fastcgi_param PHP_VALUE "open_basedir=${webroot}:/tmp/:/proc/";
     }
 
     location ~ /\. {
