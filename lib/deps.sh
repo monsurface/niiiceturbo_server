@@ -54,6 +54,8 @@ EOF
     cat > /etc/sysctl.d/99-lnmp.conf <<'EOF'
 net.core.somaxconn = 65535
 net.core.netdev_max_backlog = 65535
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
 net.ipv4.tcp_max_syn_backlog = 65535
 net.ipv4.tcp_fin_timeout = 10
 net.ipv4.tcp_tw_reuse = 1
@@ -65,6 +67,13 @@ vm.swappiness = 10
 fs.file-max = 655350
 EOF
     sysctl -p /etc/sysctl.d/99-lnmp.conf 2>/dev/null
+
+    # Verify BBR
+    if sysctl net.ipv4.tcp_congestion_control 2>/dev/null | grep -q bbr; then
+        log_ok "TCP BBR enabled."
+    else
+        log_warn "BBR not available (kernel may not support it)."
+    fi
 
     log_ok "System limits configured."
 }
