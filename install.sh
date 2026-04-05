@@ -7,6 +7,12 @@ export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 export NEEDRESTART_SUSPEND=1
 
+# Disable needrestart apt hook entirely during install
+if [[ -f /etc/apt/apt.conf.d/99needrestart ]]; then
+    mv /etc/apt/apt.conf.d/99needrestart /etc/apt/apt.conf.d/99needrestart.disabled
+    _NEEDRESTART_DISABLED=1
+fi
+
 LNMP_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Parse arguments
@@ -156,6 +162,11 @@ ln -sf "${LNMP_DIR}/tools/lnmp" /usr/bin/lnmp
 # Verify
 log_info "[7/7] Running verification..."
 verify_all
+
+# Restore needrestart hook
+if [[ "${_NEEDRESTART_DISABLED:-}" = "1" && -f /etc/apt/apt.conf.d/99needrestart.disabled ]]; then
+    mv /etc/apt/apt.conf.d/99needrestart.disabled /etc/apt/apt.conf.d/99needrestart
+fi
 
 # Summary
 END_TIME=$(date +%s)
