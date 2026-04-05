@@ -21,15 +21,11 @@ _harden_ssh() {
     local sshd_conf="/etc/ssh/sshd_config"
     [[ -f "$sshd_conf" ]] || return 0
 
-    # Disable root password login (keep key-based)
-    if ! grep -q '^PermitRootLogin prohibit-password' "$sshd_conf"; then
-        sed -i 's/^#*PermitRootLogin.*/PermitRootLogin prohibit-password/' "$sshd_conf"
-    fi
     # Disable empty passwords
     sed -i 's/^#*PermitEmptyPasswords.*/PermitEmptyPasswords no/' "$sshd_conf"
 
     systemctl reload sshd 2>/dev/null || systemctl reload ssh 2>/dev/null
-    log_info "SSH hardened."
+    log_info "SSH hardened (empty passwords disabled)."
 }
 
 _harden_nginx() {
