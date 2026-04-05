@@ -9,7 +9,10 @@ install_deps() {
 
     wait_apt_lock
 
+    log_info "Updating package index..."
     apt-get update -y -qq
+
+    log_info "Installing system packages (this may take a few minutes)..."
     apt-get install -y --no-install-recommends \
         build-essential gcc g++ make cmake autoconf automake \
         pkg-config libtool bison re2c \

@@ -59,6 +59,8 @@ if [[ "${Auto_Install}" != 'y' && "$INSTALL_TARGET" = 'lnmp' ]]; then
 fi
 
 # Prepare system
+echo ""
+log_info "[1/7] Preparing system environment..."
 prepare_system
 
 # Batch install PHP extensions from config
@@ -100,29 +102,36 @@ verify_php() {
 # Install based on target
 case "$INSTALL_TARGET" in
     lnmp)
+        log_info "[2/7] Compiling Nginx ${NGINX_VER}..."
         install_nginx
         verify_step "Nginx" verify_nginx
 
+        log_info "[3/7] Installing MySQL ${MYSQL_VER}..."
         install_mysql
         verify_step "MySQL" verify_mysql
 
+        log_info "[4/7] Compiling PHP ${PHP_VER} (this takes the longest)..."
         install_php
         verify_step "PHP" verify_php
 
+        log_info "[5/7] Installing tools (WP-CLI, extensions)..."
         install_wp_cli
         _install_php_extensions
         ;;
     nginx)
+        log_info "[2/2] Compiling Nginx ${NGINX_VER}..."
         install_nginx
         verify_step "Nginx" verify_nginx
         ;;
     db)
+        log_info "[2/2] Installing MySQL ${MYSQL_VER}..."
         install_mysql
         verify_step "MySQL" verify_mysql
         ;;
 esac
 
 # Security hardening
+log_info "[6/7] Applying security hardening..."
 apply_security
 
 # Start services
@@ -140,6 +149,7 @@ esac
 ln -sf "${LNMP_DIR}/tools/lnmp" /usr/bin/lnmp
 
 # Verify
+log_info "[7/7] Running verification..."
 verify_all
 
 # Summary
