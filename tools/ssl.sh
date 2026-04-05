@@ -26,6 +26,12 @@ _ensure_acme() {
     # Auto-upgrade
     "$ACME_BIN" --upgrade --auto-upgrade
 
+    # Ensure cron job for auto-renewal
+    if ! crontab -l 2>/dev/null | grep -q 'acme.sh'; then
+        (crontab -l 2>/dev/null; echo "0 3 * * * \"$ACME_BIN\" --cron --home \"$ACME_HOME\" --reloadcmd \"systemctl reload nginx\" > /dev/null 2>&1") | crontab -
+        echo "Auto-renewal cron job installed (daily 3:00 AM)."
+    fi
+
     echo "acme.sh installed to ${ACME_HOME}"
 }
 
