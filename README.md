@@ -10,13 +10,13 @@ All software compiled from source or installed via official binaries — no thir
 - **Compile from source** — Nginx with latest OpenSSL (HTTP/2, HTTP/3, TLS 1.3), PHP 8.3 with OPcache JIT
 - **Auto-tuning** — Nginx workers, file cache, MySQL InnoDB buffer pool, PHP-FPM children automatically calculated based on host CPU/RAM
 - **System hardening** — TCP BBR, sysctl tuning, journald log limits, swap auto-creation
-- **Timezone unified** — Single `Timezone` setting applied across system, PHP (`date.timezone`), and MySQL (`default-time-zone`)
+- **Timezone unified** — Single `Timezone` setting applied across system, PHP, and MySQL
 - **IP protection** — Auto-generated catch-all server block prevents SSL certificate leakage via IP access
-- **PHP extension framework** — Registry-based PECL extension compilation: `./tools/addons.sh install redis`
-- **Batch extension install** — Pre-configure extensions in `lnmp.conf`, built automatically during installation
-- **Tools included** — Docker, Composer, WP-CLI installed by default (configurable)
-- **SSL management** — Let's Encrypt issue/renew/revoke, self-signed certs, expiry monitoring, HTTP→HTTPS redirect
-- **Security hardening** — SSH hardening, fail2ban, firewall (UFW or iptables)
+- **PHP extension framework** — Registry-based PECL extension compilation
+- **Batch extension install** — Pre-configure extensions in config, built automatically during installation
+- **Tools included** — Docker, Composer, WP-CLI, phpMyAdmin installed by default
+- **SSL management** — Let's Encrypt via acme.sh, self-signed certs, expiry monitoring
+- **Security hardening** — SSH hardening, fail2ban, firewall (UFW or iptables), per-vhost open_basedir
 - **systemd native** — All services managed via systemd with auto-restart on failure
 - **100% official sources** — Every download comes from nginx.org, php.net, cdn.mysql.com, etc.
 - **Non-interactive mode** — `--auto` flag for fully automated deployment (cloud-init / Terraform ready)
@@ -40,6 +40,7 @@ All software compiled from source or installed via official binaries — no thir
 | Docker | Latest | Official script (get.docker.com) |
 | Composer | Latest | Official installer (getcomposer.org) |
 | WP-CLI | Latest | Official phar (wp-cli.org) |
+| phpMyAdmin | 5.2.2 | Official tarball |
 
 ## Quick Start
 
@@ -47,8 +48,12 @@ All software compiled from source or installed via official binaries — no thir
 git clone https://github.com/nczz/lnmp-stack.git
 cd lnmp-stack
 
-# Review and customize settings
-vim lnmp.conf
+# Create your local config (overrides lnmp.conf defaults)
+cat > lnmp.conf.local << 'EOF'
+Timezone='Asia/Taipei'
+MySQL_Root_Password='your_secure_password'
+PHP_Extensions_Install='redis imagick apcu'
+EOF
 
 # Install full stack
 sudo ./install.sh lnmp
@@ -57,39 +62,70 @@ sudo ./install.sh lnmp
 sudo ./install.sh --auto lnmp
 ```
 
+> **Note:** Do not edit `lnmp.conf` directly — it will be overwritten by `git pull`.
+> Always use `lnmp.conf.local` for your customizations. It is gitignored and persists across updates.
+
 ## Configuration
 
-Edit `lnmp.conf` before installation:
+All settings are documented with comments in `lnmp.conf`. Create `lnmp.conf.local` to override any value.
 
-```bash
-# Database: mysql | mariadb
-DB_Type='mysql'
+Load order: `versions.conf` → `lnmp.conf` (defaults) → `lnmp.conf.local` (your overrides)
 
-# Timezone (applied to system + PHP + MySQL)
-Timezone='Asia/Taipei'
+### Database
 
-# Memory allocator for Nginx
-Memory_Allocator='jemalloc'
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `DB_Type` | `mysql` | Database engine: `mysql` or `mariadb` |
+| `MySQL_Data_Dir` | `/usr/local/mysql/var` | MySQL data directory |
+| `MariaDB_Data_Dir` | `/usr/local/mariadb/var` | MariaDB data directory |
+| `MySQL_Root_Password` | (auto-generated) | Root password. If not set, a random one is generated and saved to `.local` |
 
-# PHP built-in extensions (compiled into PHP)
-Enable_PHP_Fileinfo='n'
-Enable_PHP_Exif='n'
-Enable_PHP_Sodium='n'
+### Nginx
 
-# PECL extensions to compile after PHP install (space-separated)
-PHP_Extensions_Install='redis imagick apcu'
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `Nginx_Modules_Options` | (empty) | Extra compile options, e.g. `--add-module=/path` |
+| `Enable_Nginx_Openssl` | `y` | Compile with latest OpenSSL (HTTP/2, HTTP/3, TLS 1.3) |
+| `Enable_Nginx_Lua` | `n` | Compile with Lua module (for WAF, custom logic) |
+| `Memory_Allocator` | `jemalloc` | Memory allocator: `jemalloc` or `none` |
 
-# Tools
-Enable_Composer='y'
-Enable_Docker='y'
-Enable_WP_CLI='y'
+### PHP
 
-# Firewall: ufw | iptables | n (disabled)
-Firewall='n'
-Enable_Fail2ban='n'
-```
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `PHP_Modules_Options` | (empty) | Extra compile options, e.g. `--with-pgsql` |
+| `Enable_PHP_Exif` | `n` | Image EXIF metadata reading |
+| `Enable_PHP_Fileinfo` | `n` | File MIME type detection |
+| `Enable_PHP_Ldap` | `n` | LDAP directory access |
+| `Enable_PHP_Bz2` | `n` | Bzip2 compression |
+| `Enable_PHP_Sodium` | `n` | Modern cryptography (libsodium) |
+| `Enable_PHP_Imap` | `n` | IMAP email protocol |
+| `PHP_Extensions_Install` | `redis imagick apcu` | PECL extensions to compile after install |
 
-Edit `versions.conf` to change software versions — all download URLs are auto-generated from version numbers.
+### Tools
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `Enable_Composer` | `y` | PHP dependency manager |
+| `Enable_Docker` | `y` | Docker + Docker Compose |
+| `Enable_WP_CLI` | `y` | WordPress command-line tool |
+| `Enable_phpMyAdmin` | `y` | phpMyAdmin in default host (http://IP/phpmyadmin/) |
+
+### System
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `Timezone` | `Asia/Taipei` | Applied to system, PHP, and MySQL |
+| `Default_Website_Dir` | `/home/wwwroot/default` | Default website root |
+| `Enable_Swap` | `y` | Auto-create swap when RAM < 2GB |
+| `Auto_Install` | `n` | Skip prompts (set automatically by `--auto` flag) |
+
+### Security
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `Enable_Fail2ban` | `n` | SSH + Nginx brute-force protection |
+| `Firewall` | `n` | `ufw`, `iptables`, or `n` (disabled) |
 
 ## Auto-Tuning
 
@@ -105,17 +141,16 @@ Configs are automatically optimized based on server specs:
 | PHP-FPM `pm.max_children` | = 30% of RAM ÷ 40MB per child |
 | PHP `memory_limit` | 64M ~ 512M based on RAM |
 
-Swap is auto-created when RAM < 2GB.
-
 ## System Initialization
 
 The installer automatically configures the host environment:
 
-- **TCP BBR** — Enables BBR congestion control (`net.ipv4.tcp_congestion_control = bbr`)
+- **TCP BBR** — Enables BBR congestion control
 - **sysctl tuning** — TCP fastopen, keepalive, port range, file limits, swappiness
 - **journald limits** — 100M total, 20M per file to prevent log bloat
 - **ulimit** — nofile/nproc set to 65535
 - **Swap** — Auto-created when RAM < 2GB
+- **sudo NOPASSWD** — Enabled for sudo group
 - **Timezone** — System, PHP, and MySQL all set from single config value
 
 ## Install Modes
@@ -124,7 +159,7 @@ The installer automatically configures the host environment:
 sudo ./install.sh lnmp          # Full stack: Nginx + MySQL + PHP
 sudo ./install.sh nginx         # Nginx only
 sudo ./install.sh db            # Database only
-sudo ./install.sh --auto lnmp   # Non-interactive (uses lnmp.conf values)
+sudo ./install.sh --auto lnmp   # Non-interactive
 ```
 
 ## Service Management
@@ -134,59 +169,78 @@ lnmp start                # Start all services
 lnmp stop                 # Stop all services
 lnmp restart              # Restart all services
 lnmp reload               # Reload Nginx + PHP-FPM configs
-lnmp status               # Show service status and ports
+lnmp status               # Show service status with versions
 lnmp kill                 # Force kill all LNMP processes
 ```
 
 ## Virtual Host Management
 
 ```bash
-lnmp vhost add            # Add virtual host (interactive, with optional SSL)
-lnmp vhost del            # Remove virtual host
-lnmp vhost list           # List virtual hosts
+# CLI mode (non-interactive)
+lnmp vhost add example.com --rewrite wordpress --ssl --redirect
+lnmp vhost add example.com --domains "www.example.com" --rewrite laravel --ssl
+lnmp vhost del example.com
+lnmp vhost list
+
+# Interactive mode
+lnmp vhost add
 ```
+
+Options: `--domains`, `--webroot`, `--rewrite`, `--ssl`, `--redirect`
 
 ## SSL Certificate Management
 
 ```bash
-lnmp ssl install          # Issue & install Let's Encrypt certificate
-lnmp ssl renew            # Renew all certificates
-lnmp ssl renew example.com  # Renew specific domain
-lnmp ssl revoke           # Revoke and remove certificate
-lnmp ssl list             # List certificates with expiry status (✅/⚠️/🔴)
-lnmp ssl self             # Generate self-signed certificate
+lnmp ssl install example.com          # Issue Let's Encrypt certificate
+lnmp ssl renew                        # Renew all certificates
+lnmp ssl renew example.com            # Renew specific domain
+lnmp ssl revoke                       # Revoke and remove certificate
+lnmp ssl list                         # List certs with expiry (✅/⚠️/🔴)
+lnmp ssl self                         # Generate self-signed certificate
 ```
 
-Features:
-- Automatic acme.sh installation from GitHub official
-- EC-256 (default) or RSA-2048 key type
-- Auto HTTP→HTTPS 301 redirect
-- HSTS header
-- Expiry monitoring (≤7 days 🔴, ≤30 days ⚠️)
-- Default catch-all server rejects HTTPS to IP/unknown domains (`ssl_reject_handshake on`)
+- Uses Let's Encrypt as default CA (not ZeroSSL)
+- EC-256 key type by default
+- DH parameters auto-generated during install
+- HTTPS catch-all with `ssl_reject_handshake` prevents cert leakage via IP
+
+## Database Management
+
+```bash
+# CLI mode
+lnmp db add mysite myuser 'mypass'    # Create database + user
+lnmp db del mysite                    # Drop database + user
+lnmp db list                          # List databases and users
+lnmp db export mysite                 # Export to .sql.gz
+lnmp db import mysite backup.sql.gz   # Import (supports .gz)
+
+# Interactive mode
+lnmp db add
+
+# Reset MySQL root password (reads from lnmp.conf.local)
+lnmp reset-password
+```
 
 ## PHP Extensions
 
 ```bash
-# Install during build via lnmp.conf
+# Pre-install via config
 PHP_Extensions_Install='redis imagick apcu swoole'
 
-# Or install/uninstall later
+# Or manage later
 sudo ./tools/addons.sh install redis
 sudo ./tools/addons.sh install imagick
-sudo ./tools/addons.sh install swoole
 sudo ./tools/addons.sh uninstall swoole
 sudo ./tools/addons.sh list
 
-# Available PECL extensions:
-#   redis, imagick, apcu, swoole, memcached, sodium
+# Available: redis, imagick, apcu, swoole, memcached, sodium
 
-# Standalone services:
+# Standalone services
 sudo ./tools/addons.sh install redis-server
 sudo ./tools/addons.sh install memcached-server
 ```
 
-Note: OPcache (with JIT) is a PHP built-in module, compiled and enabled by default — not listed here because it's always included.
+OPcache with JIT is a PHP built-in module, always compiled and enabled.
 
 ## Additional Tools
 
@@ -194,7 +248,8 @@ Note: OPcache (with JIT) is a PHP built-in module, compiled and enabled by defau
 sudo ./tools/upgrade.sh nginx      # Upgrade Nginx (edit versions.conf first)
 sudo ./tools/upgrade.sh php        # Upgrade PHP
 sudo ./tools/backup.sh [dir]       # Backup DB + sites + configs (7-day retention)
-sudo ./tools/uninstall.sh          # Uninstall (preserves website files, backs up DB)
+sudo ./tools/uninstall.sh          # Uninstall (backup DB + preserve sites)
+sudo ./tools/uninstall.sh --reset  # Full reset for clean reinstall
 ```
 
 ## Directory Layout
@@ -203,7 +258,7 @@ sudo ./tools/uninstall.sh          # Uninstall (preserves website files, backs u
 |------|-------------|
 | `/usr/local/nginx/` | Nginx installation |
 | `/usr/local/nginx/conf/vhost/` | Virtual host configs |
-| `/usr/local/nginx/conf/ssl/` | SSL certificates |
+| `/usr/local/nginx/conf/ssl/` | SSL certificates + DH parameters |
 | `/usr/local/mysql/` | MySQL installation |
 | `/usr/local/mysql/var/` | MySQL data (configurable) |
 | `/usr/local/php/` | PHP installation |
@@ -211,43 +266,9 @@ sudo ./tools/uninstall.sh          # Uninstall (preserves website files, backs u
 | `/usr/local/redis/` | Redis (if installed) |
 | `/usr/local/acme.sh/` | acme.sh (Let's Encrypt client) |
 | `/home/wwwroot/` | Website files |
-| `/home/wwwlogs/` | Nginx + PHP-FPM logs |
+| `/home/wwwlogs/` | All logs (Nginx, PHP, FPM, mail) |
 | `/root/.my.cnf` | MySQL root password (auto-generated) |
 | `/root/lnmp-install.log` | Installation log |
-
-## Project Structure
-
-```
-lnmp-stack/
-├── install.sh              # Main entry point
-├── versions.conf           # Software versions + official download URLs
-├── lnmp.conf               # Installation configuration
-├── lib/
-│   ├── common.sh           # Logging, download, extract, build utilities
-│   ├── detect.sh           # OS detection, hardware detection, auto-tuning
-│   ├── deps.sh             # System deps, timezone, BBR, journald, Docker, WP-CLI
-│   ├── nginx.sh            # Nginx compile (OpenSSL, jemalloc, Lua, catch-all)
-│   ├── mysql.sh            # MySQL/MariaDB binary install + lib fix
-│   ├── php.sh              # PHP compile + OPcache JIT + Composer
-│   ├── extensions.sh       # PECL extension compilation framework
-│   ├── security.sh         # SSH, fail2ban, UFW/iptables
-│   └── verify.sh           # Post-install health checks
-├── conf/
-│   ├── nginx/              # Nginx config templates (auto-tuned)
-│   ├── mysql/my.cnf        # MySQL config template (auto-tuned, skip-log-bin)
-│   ├── php/                # php.ini + php-fpm.conf templates (auto-tuned)
-│   └── rewrite/            # URL rewrite rules (WordPress, Laravel, etc.)
-├── systemd/                # Service unit files
-├── tools/
-│   ├── lnmp                # Service management command
-│   ├── vhost.sh            # Virtual host management
-│   ├── ssl.sh              # SSL certificate management
-│   ├── addons.sh           # PHP extension installer
-│   ├── upgrade.sh          # Nginx/PHP upgrade
-│   ├── backup.sh           # Full backup (DB + sites + configs)
-│   └── uninstall.sh        # Clean uninstall
-└── src/                    # Source tarball cache (gitignored)
-```
 
 ## License
 
