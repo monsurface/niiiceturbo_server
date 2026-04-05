@@ -101,7 +101,10 @@ server {
 }
 EOF
 
-    # SSL setup
+    # Reload Nginx so the new vhost is active (required before SSL verification)
+    /usr/local/nginx/sbin/nginx -t && systemctl reload nginx
+
+    # SSL setup (needs working vhost to serve .well-known/acme-challenge/)
     if [[ "${enable_ssl}" =~ ^[Yy]$ ]]; then
         local script_dir="$(cd "$(dirname "$0")" && pwd)"
         local ssl_args="$domain --webroot $webroot"
@@ -109,8 +112,6 @@ EOF
         FORCE_REDIRECT="$force_redirect" bash "${script_dir}/ssl.sh" install $ssl_args
     fi
 
-    # Test and reload
-    /usr/local/nginx/sbin/nginx -t && systemctl reload nginx
     echo "Virtual host ${domain} created."
     echo "  Config: ${conf_file}"
     echo "  Webroot: ${webroot}"
