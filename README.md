@@ -164,6 +164,8 @@ sudo ./install.sh --auto lnmp   # Non-interactive
 
 ## Service Management
 
+Bash completion is installed automatically — press `Tab` to autocomplete commands and options.
+
 ```bash
 lnmp start                # Start all services
 lnmp stop                 # Stop all services

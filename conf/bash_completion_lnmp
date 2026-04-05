@@ -1,0 +1,38 @@
+# lnmp command bash completion
+_lnmp_completion() {
+    local cur prev
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    case "${prev}" in
+        lnmp)
+            COMPREPLY=( $(compgen -W "start stop restart reload status kill vhost ssl db reset-password" -- ${cur}) )
+            ;;
+        vhost)
+            COMPREPLY=( $(compgen -W "add del list" -- ${cur}) )
+            ;;
+        ssl)
+            COMPREPLY=( $(compgen -W "install renew revoke list self" -- ${cur}) )
+            ;;
+        db)
+            COMPREPLY=( $(compgen -W "add del list import export" -- ${cur}) )
+            ;;
+        add)
+            # vhost add options
+            if [[ "${COMP_WORDS[1]}" = "vhost" ]]; then
+                COMPREPLY=( $(compgen -W "--domains --webroot --rewrite --ssl --redirect" -- ${cur}) )
+            fi
+            ;;
+        --rewrite)
+            local rules=""
+            if [[ -d /usr/local/nginx/conf/rewrite ]]; then
+                rules=$(ls /usr/local/nginx/conf/rewrite/ 2>/dev/null | sed 's/\.conf$//')
+            fi
+            COMPREPLY=( $(compgen -W "${rules}" -- ${cur}) )
+            ;;
+    esac
+    return 0
+}
+
+complete -F _lnmp_completion lnmp

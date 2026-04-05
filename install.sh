@@ -159,6 +159,11 @@ esac
 # Install lnmp management command (symlink to source)
 ln -sf "${LNMP_DIR}/tools/lnmp" /usr/bin/lnmp
 
+# Install bash completion
+if [[ -d /etc/bash_completion.d ]]; then
+    cp "${LNMP_DIR}/conf/bash_completion_lnmp" /etc/bash_completion.d/lnmp
+fi
+
 # Verify
 log_info "[7/7] Running verification..."
 verify_all
