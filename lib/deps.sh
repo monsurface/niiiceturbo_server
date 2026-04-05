@@ -4,9 +4,6 @@
 install_deps() {
     log_info "Installing system dependencies..."
 
-    export DEBIAN_FRONTEND=noninteractive
-    export NEEDRESTART_MODE=a
-
     wait_apt_lock
 
     log_info "Updating package index..."

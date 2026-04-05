@@ -2,6 +2,11 @@
 # install.sh — Main entry point
 set -euo pipefail
 
+# Prevent any interactive prompts from apt/needrestart/debconf
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+export NEEDRESTART_SUSPEND=1
+
 LNMP_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Parse arguments
