@@ -104,7 +104,9 @@ EOF
     # SSL setup
     if [[ "${enable_ssl}" =~ ^[Yy]$ ]]; then
         local script_dir="$(cd "$(dirname "$0")" && pwd)"
-        FORCE_REDIRECT="$force_redirect" bash "${script_dir}/ssl.sh" install "$domain" "$more_domains" "$webroot"
+        local ssl_args="$domain --webroot $webroot"
+        [[ -n "$more_domains" ]] && ssl_args="$ssl_args --domains \"$more_domains\""
+        FORCE_REDIRECT="$force_redirect" bash "${script_dir}/ssl.sh" install $ssl_args
     fi
 
     # Test and reload

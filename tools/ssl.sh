@@ -36,13 +36,10 @@ ssl_install() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --keytype)  keytype="$2"; shift 2 ;;
+            --webroot)  webroot="$2"; shift 2 ;;
+            --domains)  more_domains="$2"; shift 2 ;;
             -*)         shift ;;
-            *)
-                if [[ -z "$domain" ]]; then domain="$1"
-                elif [[ -z "$more_domains" ]]; then more_domains="$1"
-                else webroot="$1"
-                fi
-                shift ;;
+            *)          [[ -z "$domain" ]] && domain="$1"; shift ;;
         esac
     done
 
