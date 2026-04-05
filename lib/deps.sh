@@ -9,7 +9,7 @@ install_deps() {
 
     wait_apt_lock
 
-    apt-get update -y
+    apt-get update -y -qq
     apt-get install -y --no-install-recommends \
         build-essential gcc g++ make cmake autoconf automake \
         pkg-config libtool bison re2c \
