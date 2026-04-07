@@ -134,6 +134,8 @@ vhost_del() {
 
 vhost_list() {
     echo "Virtual hosts:"
+    printf "  %-30s %s\n" "CONFIG" "SERVER_NAME"
+    printf "  %-30s %s\n" "------" "-----------"
     for f in "${VHOST_DIR}"/*.conf; do
         [[ -f "$f" ]] || continue
         local name=$(basename "$f" .conf)
