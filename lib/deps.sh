@@ -150,6 +150,7 @@ install_wp_cli() {
     fi
 
     log_info "Installing WP-CLI..."
+    rm -f /usr/local/bin/wp
     curl -sS -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
     chmod +x /usr/local/bin/wp
 
