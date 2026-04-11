@@ -98,6 +98,78 @@ calc_tuning_params() {
     log_info "Tuning: Nginx workers=${NGINX_WORKER_PROCESSES}, MySQL buffer_pool=${MYSQL_INNODB_BUFFER_POOL}M, PHP-FPM max_children=${PHP_FPM_MAX_CHILDREN}"
 }
 
+# Pre-flight: detect /usr/local libraries that conflict with apt-installed -dev packages
+check_env_conflicts() {
+    # library name | /usr/local file to check | apt package it conflicts with
+    local conflicts=(
+        "iconv|include/iconv.h|libc6-dev"
+        "libssl|lib/libssl.so|libssl-dev"
+        "libxml2|include/libxml2/libxml/parser.h|libxml2-dev"
+        "libcurl|lib/libcurl.so|libcurl4-openssl-dev"
+        "libpng|lib/libpng.so|libpng-dev"
+        "libjpeg|lib/libjpeg.so|libjpeg-dev"
+        "libfreetype|lib/libfreetype.so|libfreetype-dev"
+        "libonig|lib/libonig.so|libonig-dev"
+        "libzip|lib/libzip.so|libzip-dev"
+        "libpcre2|lib/libpcre2-8.so|libpcre2-dev"
+        "libgd|lib/libgd.so|libgd-dev"
+    )
+
+    local found=()
+    for entry in "${conflicts[@]}"; do
+        IFS='|' read -r name localfile aptpkg <<< "$entry"
+        [[ -e "/usr/local/${localfile}" ]] || continue
+        dpkg -s "$aptpkg" &>/dev/null || continue
+        found+=("  /usr/local/${localfile}  (conflicts with apt: ${aptpkg})")
+    done
+
+    [[ ${#found[@]} -eq 0 ]] && { log_ok "No /usr/local library conflicts detected."; return 0; }
+
+    log_warn "Detected /usr/local libraries that may conflict with system packages:"
+    for line in "${found[@]}"; do
+        log_warn "$line"
+    done
+
+    local backup_dir="/tmp/lnmp-env-backup-$(date +%Y%m%d%H%M%S)"
+
+    if [[ "${Auto_Install}" = 'y' ]]; then
+        log_info "Auto mode: backing up and removing conflicting files..."
+    else
+        echo ""
+        read -r -p "Back up conflicting files to ${backup_dir} and remove? [Y/n] " answer
+        [[ "${answer,,}" = 'n' ]] && { log_warn "Skipped — compilation may fail."; return 0; }
+    fi
+
+    mkdir -p "$backup_dir"
+    for entry in "${conflicts[@]}"; do
+        IFS='|' read -r name localfile aptpkg <<< "$entry"
+        [[ -e "/usr/local/${localfile}" ]] || continue
+        dpkg -s "$aptpkg" &>/dev/null || continue
+
+        # Back up and remove all related files for this library
+        local dir base
+        dir="$(dirname "/usr/local/${localfile}")"
+        base="$(basename "/usr/local/${localfile}" | sed 's/\.so$//' | sed 's/\.h$//')"
+        mkdir -p "${backup_dir}/${dir#/usr/local/}"
+        for f in "${dir}/${base}"* ; do
+            [[ -e "$f" ]] || continue
+            cp -a "$f" "${backup_dir}/${dir#/usr/local/}/"
+            rm -f "$f"
+        done
+        # Also remove .la and .a variants in lib/
+        if [[ "$localfile" == lib/* ]]; then
+            for f in "/usr/local/lib/${base}"*.{la,a} ; do
+                [[ -e "$f" ]] || continue
+                cp -a "$f" "${backup_dir}/lib/"
+                rm -f "$f"
+            done
+        fi
+    done
+
+    log_ok "Conflicting files backed up to ${backup_dir} and removed."
+    ldconfig 2>/dev/null || true
+}
+
 # Setup swap if needed
 setup_swap() {
     [[ "${Enable_Swap}" = 'y' ]] || return 0

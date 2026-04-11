@@ -73,6 +73,7 @@ fi
 echo ""
 log_info "[1/7] Preparing system environment..."
 prepare_system
+check_env_conflicts
 
 # Batch install PHP extensions from config
 _install_php_extensions() {

@@ -18,7 +18,7 @@ install_php() {
         --enable-mysqlnd
         --with-mysqli=mysqlnd
         --with-pdo-mysql=mysqlnd
-        --with-iconv
+        --with-iconv=/usr
         --with-freetype
         --with-jpeg
         --with-webp
@@ -60,6 +60,9 @@ install_php() {
 
     # User-defined extra options
     [[ -n "${PHP_Modules_Options}" ]] && php_configure_args+=( ${PHP_Modules_Options} )
+
+    # Prioritize system pkg-config paths to avoid /usr/local contamination
+    export PKG_CONFIG_PATH="/usr/lib/${ARCH}-linux-gnu/pkgconfig:/usr/share/pkgconfig"
 
     ./configure "${php_configure_args[@]}" 2>&1 | tee -a "$LOG_FILE"
     [[ ${PIPESTATUS[0]} -eq 0 ]] || die "PHP configure failed"

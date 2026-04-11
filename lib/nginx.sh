@@ -69,6 +69,9 @@ install_nginx() {
     fi
 
     cd "${cur_dir}/src/nginx-${NGINX_VER}"
+    # Prioritize system pkg-config paths to avoid /usr/local contamination
+    export PKG_CONFIG_PATH="/usr/lib/${ARCH}-linux-gnu/pkgconfig:/usr/share/pkgconfig"
+
     ./configure "${nginx_configure_args[@]}" 2>&1 | tee -a "$LOG_FILE"
     [[ ${PIPESTATUS[0]} -eq 0 ]] || die "Nginx configure failed"
 
