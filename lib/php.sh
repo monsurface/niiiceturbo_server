@@ -18,7 +18,7 @@ install_php() {
         --enable-mysqlnd
         --with-mysqli=mysqlnd
         --with-pdo-mysql=mysqlnd
-        --with-iconv=/usr
+        --with-iconv
         --with-freetype
         --with-jpeg
         --with-webp
