@@ -103,6 +103,7 @@ check_env_conflicts() {
     # library name | /usr/local file to check | apt package it conflicts with
     local conflicts=(
         "iconv|include/iconv.h|libc6-dev"
+        "libiconv|lib/libiconv.so|libc6-dev"
         "libssl|lib/libssl.so|libssl-dev"
         "libxml2|include/libxml2/libxml/parser.h|libxml2-dev"
         "libcurl|lib/libcurl.so|libcurl4-openssl-dev"
