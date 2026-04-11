@@ -185,14 +185,14 @@ esac
 log_info "[6/7] Applying security hardening..."
 apply_security
 
-# Start services
+# Start services (non-fatal — port conflicts should not abort installation)
 case "$INSTALL_TARGET" in
     lnmp)
-        systemctl start nginx
-        systemctl start php-fpm
+        systemctl start nginx 2>/dev/null || log_warn "Nginx failed to start (port conflict?). Start manually after resolving."
+        systemctl start php-fpm 2>/dev/null || log_warn "PHP-FPM failed to start. Check: systemctl status php-fpm"
         ;;
     nginx)
-        systemctl start nginx
+        systemctl start nginx 2>/dev/null || log_warn "Nginx failed to start (port conflict?). Start manually after resolving."
         ;;
 esac
 
