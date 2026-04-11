@@ -6,3 +6,4 @@ lnmp.conf.local
 *.tgz
 *.log
 .DS_Store
+.install-progress

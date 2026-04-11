@@ -11,7 +11,16 @@ log_info()  { echo -e "${CYAN}[INFO]${NC} $*" | tee -a "$LOG_FILE"; }
 log_ok()    { echo -e "${GREEN}[OK]${NC} $*" | tee -a "$LOG_FILE"; }
 log_warn()  { echo -e "${YELLOW}[WARN]${NC} $*" | tee -a "$LOG_FILE"; }
 log_err()   { echo -e "${RED}[ERROR]${NC} $*" | tee -a "$LOG_FILE"; }
-die()       { log_err "$*"; exit 1; }
+die()       { log_err "$*"; _die_resume_hint; exit 1; }
+
+# Print resume hint when installation fails
+_die_resume_hint() {
+    [[ -n "${INSTALL_TARGET:-}" ]] || return 0
+    [[ -f "${_PROGRESS_FILE:-}" ]] || return 0
+    echo ""
+    log_info "After fixing the issue, resume with:"
+    echo "  sudo ./install.sh --resume ${INSTALL_TARGET}"
+}
 
 # Wait for apt/dpkg lock before running apt commands
 wait_apt_lock() {

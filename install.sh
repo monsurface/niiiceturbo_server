@@ -17,15 +17,17 @@ LNMP_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Parse arguments
 AUTO_MODE='n'
+RESUME_MODE='n'
 INSTALL_TARGET=''
 for arg in "$@"; do
     case "$arg" in
         --auto) AUTO_MODE='y' ;;
+        --resume) RESUME_MODE='y' ;;
         lnmp|nginx|db) INSTALL_TARGET="$arg" ;;
-        *) echo "Usage: $0 [--auto] {lnmp|nginx|db}"; exit 1 ;;
+        *) echo "Usage: $0 [--auto] [--resume] {lnmp|nginx|db}"; exit 1 ;;
     esac
 done
-[[ -n "$INSTALL_TARGET" ]] || { echo "Usage: $0 [--auto] {lnmp|nginx|db}"; exit 1; }
+[[ -n "$INSTALL_TARGET" ]] || { echo "Usage: $0 [--auto] [--resume] {lnmp|nginx|db}"; exit 1; }
 
 # Load config (lnmp.conf = defaults, lnmp.conf.local = user overrides)
 source "${LNMP_DIR}/versions.conf"
@@ -42,6 +44,18 @@ source "${LNMP_DIR}/lib/security.sh"
 source "${LNMP_DIR}/lib/verify.sh"
 
 [[ "$AUTO_MODE" = 'y' ]] && Auto_Install='y'
+
+# Step progress tracking for --resume
+_PROGRESS_FILE="${LNMP_DIR}/.install-progress"
+
+mark_step() { echo "$1" >> "$_PROGRESS_FILE"; }
+
+step_done() {
+    [[ "$RESUME_MODE" = 'y' ]] && grep -qxF "$1" "$_PROGRESS_FILE" 2>/dev/null
+}
+
+# Fresh install: clear previous progress
+[[ "$RESUME_MODE" != 'y' ]] && rm -f "$_PROGRESS_FILE"
 
 # Start
 print_banner
@@ -71,9 +85,14 @@ fi
 
 # Prepare system
 echo ""
-log_info "[1/7] Preparing system environment..."
-prepare_system
-check_env_conflicts
+if step_done prepare; then
+    log_ok "[1/7] System preparation — already done, skipping."
+else
+    log_info "[1/7] Preparing system environment..."
+    prepare_system
+    check_env_conflicts
+    mark_step prepare
+fi
 
 # Batch install PHP extensions from config
 _install_php_extensions() {
@@ -114,21 +133,41 @@ verify_php() {
 # Install based on target
 case "$INSTALL_TARGET" in
     lnmp)
-        log_info "[2/7] Compiling Nginx ${NGINX_VER}..."
-        install_nginx
-        verify_step "Nginx" verify_nginx
+        if step_done nginx; then
+            log_ok "[2/7] Nginx — already installed, skipping."
+        else
+            log_info "[2/7] Compiling Nginx ${NGINX_VER}..."
+            install_nginx
+            verify_step "Nginx" verify_nginx
+            mark_step nginx
+        fi
 
-        log_info "[3/7] Installing MySQL ${MYSQL_VER}..."
-        install_mysql
-        verify_step "MySQL" verify_mysql
+        if step_done mysql; then
+            log_ok "[3/7] MySQL — already installed, skipping."
+        else
+            log_info "[3/7] Installing MySQL ${MYSQL_VER}..."
+            install_mysql
+            verify_step "MySQL" verify_mysql
+            mark_step mysql
+        fi
 
-        log_info "[4/7] Compiling PHP ${PHP_VER} (this takes the longest)..."
-        install_php
-        verify_step "PHP" verify_php
+        if step_done php; then
+            log_ok "[4/7] PHP — already installed, skipping."
+        else
+            log_info "[4/7] Compiling PHP ${PHP_VER} (this takes the longest)..."
+            install_php
+            verify_step "PHP" verify_php
+            mark_step php
+        fi
 
-        log_info "[5/7] Installing tools (WP-CLI, extensions)..."
-        install_wp_cli
-        _install_php_extensions
+        if step_done tools; then
+            log_ok "[5/7] Tools — already installed, skipping."
+        else
+            log_info "[5/7] Installing tools (WP-CLI, extensions)..."
+            install_wp_cli
+            _install_php_extensions
+            mark_step tools
+        fi
         ;;
     nginx)
         log_info "[2/2] Compiling Nginx ${NGINX_VER}..."
@@ -173,6 +212,9 @@ verify_all
 if [[ "${_NEEDRESTART_DISABLED:-}" = "1" && -f /etc/apt/apt.conf.d/99needrestart.disabled ]]; then
     mv /etc/apt/apt.conf.d/99needrestart.disabled /etc/apt/apt.conf.d/99needrestart
 fi
+
+# Clean up progress file on success
+rm -f "$_PROGRESS_FILE"
 
 # Summary
 END_TIME=$(date +%s)
