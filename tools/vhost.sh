@@ -24,7 +24,7 @@ show_add_usage() {
 }
 
 vhost_add() {
-    local domain="" more_domains="" webroot="" rewrite="none" enable_ssl="n" force_redirect="n"
+    local domain="" more_domains="" webroot="" rewrite="none" enable_ssl="n" force_redirect="n" acme_email=""
 
     # Parse CLI args
     while [[ $# -gt 0 ]]; do
@@ -34,6 +34,7 @@ vhost_add() {
             --rewrite)  rewrite="$2"; shift 2 ;;
             --ssl)      enable_ssl="y"; shift ;;
             --redirect) force_redirect="y"; shift ;;
+            --email)    acme_email="$2"; shift 2 ;;
             --help|-h)  show_add_usage; exit 0 ;;
             -*)         echo "Unknown option: $1"; show_add_usage; exit 1 ;;
             *)          [[ -z "$domain" ]] && domain="$1" || more_domains="${more_domains:+$more_domains }$1"; shift ;;
@@ -109,6 +110,7 @@ EOF
         local script_dir="$(cd "$(dirname "$0")" && pwd)"
         local ssl_args="$domain --webroot $webroot"
         [[ -n "$more_domains" ]] && ssl_args="$ssl_args --domains \"$more_domains\""
+        [[ -n "$acme_email" ]] && ssl_args="$ssl_args --email $acme_email"
         FORCE_REDIRECT="$force_redirect" bash "${script_dir}/ssl.sh" install $ssl_args
     fi
 

@@ -13,9 +13,13 @@ _ensure_acme() {
     fi
 
     echo "Installing acme.sh..."
-    local email="${1:-}"
-    [[ -z "$email" ]] && read -r -p "Email for Let's Encrypt registration: " email
-    [[ -n "$email" ]] || { echo "Email required."; exit 1; }
+    # email 來源優先序:傳入參數 > ACME_EMAIL env > (有 TTY 才)互動詢問。
+    # 無 TTY 且無 email 時 fail-fast(不卡 read),供 worker 自動化 SSH 使用。
+    local email="${1:-${ACME_EMAIL:-}}"
+    if [[ -z "$email" && -t 0 ]]; then
+        read -r -p "Email for Let's Encrypt registration: " email
+    fi
+    [[ -n "$email" ]] || { echo "Email required (pass --email or set ACME_EMAIL when non-interactive)."; exit 1; }
 
     curl -sS https://get.acme.sh | sh -s email="$email"
     ln -sf ~/.acme.sh "$ACME_HOME"
@@ -36,7 +40,7 @@ _ensure_acme() {
 }
 
 ssl_install() {
-    local domain="" more_domains="" webroot="" keytype="ec-256"
+    local domain="" more_domains="" webroot="" keytype="ec-256" email=""
 
     # Parse args
     while [[ $# -gt 0 ]]; do
@@ -44,12 +48,13 @@ ssl_install() {
             --keytype)  keytype="$2"; shift 2 ;;
             --webroot)  webroot="$2"; shift 2 ;;
             --domains)  more_domains="$2"; shift 2 ;;
+            --email)    email="$2"; shift 2 ;;
             -*)         shift ;;
             *)          [[ -z "$domain" ]] && domain="$1"; shift ;;
         esac
     done
 
-    _ensure_acme
+    _ensure_acme "$email"
 
     # Interactive fallback
     [[ -n "$domain" ]] || read -r -p "Domain (e.g. example.com): " domain
@@ -95,8 +100,9 @@ ssl_install() {
     echo "  Key:       ${cert_dir}/key.pem"
     echo "  Fullchain: ${cert_dir}/fullchain.pem"
 
-    # Ask to configure vhost
-    read -r -p "Update Nginx vhost config for SSL? [Y/n]: " update_vhost
+    # Ask to configure vhost (無 TTY 時預設 Y,不卡 read)
+    local update_vhost="Y"
+    [[ -t 0 ]] && read -r -p "Update Nginx vhost config for SSL? [Y/n]: " update_vhost
     if [[ ! "${update_vhost}" =~ ^[Nn]$ ]]; then
         _apply_ssl_vhost "$domain" "$more_domains" "$webroot" "$cert_dir"
     fi
@@ -172,7 +178,8 @@ ssl_self() {
     echo "  Key:       ${cert_dir}/key.pem"
     echo "  Fullchain: ${cert_dir}/fullchain.pem"
 
-    read -r -p "Update Nginx vhost config for SSL? [Y/n]: " update_vhost
+    local update_vhost="Y"
+    [[ -t 0 ]] && read -r -p "Update Nginx vhost config for SSL? [Y/n]: " update_vhost
     if [[ ! "${update_vhost}" =~ ^[Nn]$ ]]; then
         _apply_ssl_vhost "$domain" "" "/home/wwwroot/${domain}" "$cert_dir"
     fi
@@ -200,7 +207,7 @@ _apply_ssl_vhost() {
     if ! grep -q 'return 301 https' "$vhost_conf" 2>/dev/null; then
         local do_redirect="n"
         [[ "${FORCE_REDIRECT:-}" = "y" ]] && do_redirect="y"
-        [[ "$do_redirect" = "n" ]] && read -r -p "Redirect HTTP to HTTPS (301)? [y/N]: " do_redirect
+        [[ "$do_redirect" = "n" && -t 0 ]] && read -r -p "Redirect HTTP to HTTPS (301)? [y/N]: " do_redirect
         if [[ "${do_redirect}" =~ ^[Yy]$ ]]; then
             sed -i '/^server {/,/^}/ {
                 /index/a\
