@@ -275,3 +275,15 @@ sudo ./tools/uninstall.sh --reset  # Full reset for clean reinstall
 ## License
 
 MIT
+
+## PHP 安全更新（2026-10-22）
+
+目前安裝版本為 PHP 8.3.36，修補 CVE-2026-109618、CVE-2026-109619；
+`versions.conf` 固定官方 tar.xz 的 SHA-256，新安裝同樣驗證下載檔。
+
+既有 PHP 8.3 主機使用 `bash tools/upgrade.sh php`。安全更新會先在
+PHP-FPM 持續服務時，以原機編譯參數低優先編譯並安裝至暫存目錄；
+保留 php.ini、各站 pool 與既有擴充，通過設定檢查後才短暫切換。
+切換後核對版本與模組清單，啟動失敗則自動嘗試還原；完整舊目錄與
+編譯紀錄保存在 `/usr/local/.php-security/<版本>-<UTC時間>/`。
+此入口只支援同一 8.3 分支更新，不執行資料庫升級或修改站台資料。

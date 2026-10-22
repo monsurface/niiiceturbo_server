@@ -30,14 +30,8 @@ case "$TARGET" in
         log_ok "Nginx upgraded to ${NGINX_VER}."
         ;;
     php)
-        log_info "Upgrading PHP to ${PHP_VER}..."
-        source "${LNMP_DIR}/lib/php.sh"
-
-        systemctl stop php-fpm
-        install_php
-        systemctl start php-fpm
-
-        log_ok "PHP upgraded to ${PHP_VER}."
+        # 線上編譯完成才切換；保留各站設定、既有擴充與可還原的舊版本。
+        exec bash "${LNMP_DIR}/tools/upgrade-php-security.sh"
         ;;
     *)
         echo "Usage: $0 {nginx|php}"

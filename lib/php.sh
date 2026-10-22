@@ -4,7 +4,7 @@
 install_php() {
     log_info "=== Installing PHP ${PHP_VER} ==="
 
-    download_src "PHP" "$PHP_URL"
+    download_src "PHP" "$PHP_URL" "${PHP_SHA256:-}"
     tar_cd "php-${PHP_VER}.tar.xz" "php-${PHP_VER}"
 
     local php_configure_args=(
